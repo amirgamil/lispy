@@ -23,7 +23,9 @@ func PRINT(exp string) string {
 
 // repl
 func repl(str string) string {
-	return PRINT(EVAL(READ(str), ""))
+	readStr(str)
+	return ""
+	// return PRINT(EVAL(READ(str), ""))
 }
 
 func main() {

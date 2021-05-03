@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"unicode"
 )
 
@@ -13,7 +14,7 @@ const ATOM TokenType = "ATOM"
 const LIST TokenType = "LIST"
 const EXP TokenType = "EXP"
 const ENV TokenType = "ENV"
-const EOF TokenTpe = "EOF"
+const EOF TokenType = "EOF"
 
 const LPAREN TokenType = "LPAREN"
 const RPAREN TokenType = "RPAREN"
@@ -40,31 +41,33 @@ type Lexer struct {
 }
 
 func New(input string) *Lexer {
-	return &Lexer{Input: input, Position: 0, ReadPosition: 0, ""}
+	return &Lexer{Input: input, Position: -1, ReadPosition: -1, Char: 0}
 }
 
 func (l *Lexer) advance() {
 	l.ReadPosition += 1
 	if l.ReadPosition >= len(l.Input) {
-		l.Char = nil
+		//Not sure about this bit
+		l.Char = 0
 	} else {
 		l.Char = l.Input[l.ReadPosition]
+		l.Position = l.ReadPosition - 1
 	}
 }
 
 func (l *Lexer) peek() byte {
-	return r[l.ReadPosition+1]
+	return l.Input[l.ReadPosition+1]
 }
 
 func (l *Lexer) skipWhiteSpace() {
-	for unicode.IsSpace(l.Char) {
+	for unicode.IsSpace(rune(l.Char)) {
 		l.advance()
 	}
 }
 
 func (l *Lexer) getInteger() Token {
 	var number string
-	for unicode.IsDigit(l.Char) {
+	for unicode.IsDigit(rune(l.Char)) {
 		number += string(l.Char)
 		l.advance()
 	}
@@ -73,7 +76,8 @@ func (l *Lexer) getInteger() Token {
 
 func (l *Lexer) scanToken() Token {
 	for true {
-		switch curr := string(l.Char) {
+		char := string(l.Char)
+		switch char {
 		case " ":
 			l.skipWhiteSpace()
 			continue
@@ -95,30 +99,45 @@ func (l *Lexer) scanToken() Token {
 		case "*":
 			l.advance()
 			return Token{Token: MULTIPLY, Literal: "*"}
-		case unicode.IsDigit([]rune(curr)):
-			return l.getInteger()
+		default:
+			if unicode.IsDigit(rune(l.Char)) {
+				return l.getInteger()
+			}
+			//more things potentially here
+			fmt.Println("whoah, you sure that's a valid character mate")
+			return Token{}
 		}
 	}
+	return Token{}
+}
+
+func (l *Lexer) tokenize(source string) []Token {
+	var tokens []Token
+	l.advance()
+	for l.Position < len(l.Input) {
+		next := l.scanToken()
+		tokens = append(tokens, next)
+	}
+	tokens = append(tokens, Token{Token: EOF, Literal: "EOF"})
+	return tokens
 }
 
 //Takes as input the source code as a string and returns a list of tokens
-func ReadStr(source string) {
+func readStr(source string) {
 	l := New(source)
-	var currentToken = l.getNextToken()
-	for currentToken.Token != EOF {
-
+	tokens := l.tokenize(source)
+	//parse the tokens
+	for _, Token := range tokens {
+		fmt.Println(Token)
 	}
+
 }
-
-
-
-
 
 /*
 Grammar
 
 expr:   ID | STR | NUM | list
-list:   ( seq )  
+list:   ( seq )
 seq:       | expr seq
 (note ^ is an empty list)
 
