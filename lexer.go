@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"unicode"
 )
 
@@ -41,22 +42,25 @@ type Lexer struct {
 }
 
 func New(input string) *Lexer {
-	return &Lexer{Input: input, Position: -1, ReadPosition: -1, Char: 0}
+	return &Lexer{Input: input, Position: 0, ReadPosition: 0, Char: 0}
 }
 
 func (l *Lexer) advance() {
-	l.ReadPosition += 1
 	if l.ReadPosition >= len(l.Input) {
 		//Not sure about this bit
 		l.Char = 0
 	} else {
 		l.Char = l.Input[l.ReadPosition]
-		l.Position = l.ReadPosition - 1
 	}
+	l.Position = l.ReadPosition
+	l.ReadPosition += 1
 }
 
 func (l *Lexer) peek() byte {
-	return l.Input[l.ReadPosition+1]
+	if l.ReadPosition >= len(l.Input) {
+		return 0
+	}
+	return l.Input[l.ReadPosition]
 }
 
 func (l *Lexer) skipWhiteSpace() {
@@ -66,53 +70,51 @@ func (l *Lexer) skipWhiteSpace() {
 }
 
 func (l *Lexer) getInteger() Token {
-	var number string
-	for unicode.IsDigit(rune(l.Char)) {
-		number += string(l.Char)
+	old := l.Position
+	//peek and not advance since advance is called at the end of scanToken, and this could cause us to jump and skip a step
+	for unicode.IsDigit(rune(l.peek())) {
 		l.advance()
 	}
-	return Token{Token: INTEGER, Literal: number}
+	return newToken(INTEGER, l.Input[old:l.ReadPosition])
+}
+
+func newToken(token TokenType, literal string) Token {
+	return Token{Token: token, Literal: literal}
 }
 
 func (l *Lexer) scanToken() Token {
-	for true {
-		char := string(l.Char)
-		switch char {
-		case " ":
-			l.skipWhiteSpace()
-			continue
-		case "(":
-			l.advance()
-			return Token{Token: LPAREN, Literal: "("}
-		case ")":
-			l.advance()
-			return Token{Token: RPAREN, Literal: ")"}
-		case "+":
-			l.advance()
-			return Token{Token: PLUS, Literal: "+"}
-		case "-":
-			l.advance()
-			return Token{Token: MINUS, Literal: "-"}
-		case "/":
-			l.advance()
-			return Token{Token: DIVIDE, Literal: "/"}
-		case "*":
-			l.advance()
-			return Token{Token: MULTIPLY, Literal: "*"}
-		default:
-			if unicode.IsDigit(rune(l.Char)) {
-				return l.getInteger()
-			}
+	l.skipWhiteSpace()
+	var token Token
+	switch l.Char {
+	case '(':
+		token = newToken(LPAREN, "(")
+	case ')':
+		token = newToken(RPAREN, ")")
+	case '+':
+		token = newToken(PLUS, "+")
+	case '-':
+		token = newToken(MINUS, "-")
+	case '/':
+		token = newToken(DIVIDE, "/")
+	case '*':
+		token = newToken(MULTIPLY, "*")
+	case 0:
+		token = newToken(EOF, "EOF")
+	default:
+		if unicode.IsDigit(rune(l.Char)) {
+			token = l.getInteger()
+		} else {
 			//more things potentially here
-			fmt.Println("whoah, you sure that's a valid character mate")
-			return Token{}
+			log.Fatal("whoah, you sure that's a valid character mate")
 		}
 	}
-	return Token{}
+	l.advance()
+	return token
 }
 
 func (l *Lexer) tokenize(source string) []Token {
 	var tokens []Token
+	//set the first character
 	l.advance()
 	for l.Position < len(l.Input) {
 		next := l.scanToken()
