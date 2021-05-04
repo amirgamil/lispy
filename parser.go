@@ -3,100 +3,121 @@ package main
 import (
 	"fmt"
 	"log"
+	"strconv"
 )
 
-const (
-	Num = iota
-	List
-	Identifier
-	String
-)
+// const (
+// 	Num = iota
+// 	List
+// 	Identifier
+// 	String
+// )
 
-type Atom struct {
-	value interface{}
+//Generic interface for an Sexp (any node in our AST must implement this interface)
+type Sexp interface {
+	String() string
 }
 
-type List struct {
-	list []interface{}
+//Symbol
+type Symbol struct {
+	//TODO: clean this up? don't know how yet
+	ofType TokenType
+	value  string
 }
 
-type Expression struct {
-	operator  TokenType
+func (s Symbol) String() string {
+	return s.value
+}
+
+//Number
+type Number int
+
+func (n Number) String() string {
+	return strconv.Itoa(int(n))
+}
+
+//List node in our AST
+//Implement a list trivially as this for now
+//If I decide to add arrays later on, I can think about implenting the arrays as below
+//and the list as a LinkedList like Glisp
+type List []Sexp
+
+func (l List) String() string {
+	if len(l) == 0 {
+		return "[]"
+	}
+
+	strBuilder := "["
+	for i := 0; i < len(l); i++ {
+		strBuilder += " " + l[i].String()
+	}
+	strBuilder += "]"
+	return strBuilder
+}
+
+type SExpression struct {
 	arguments List
 }
 
-func parse(tokens []Token) ([]Expression, error) {
+func parse(tokens []Token) ([]Sexp, error) {
 	idx, length := 0, len(tokens)
-	nodes := make([]Expression, 0)
-	for idx < length && tokens[idx].Token != EOF {
-		token := tokens[idx]
-		switch token.Token {
-		case LPAREN:
-			//skip paren
-			idx++
-			node, add, err := parseList(tokens[idx:])
-			if err != nil {
-				log.Fatal("error parsing the list")
-			}
-			fmt.Println(node)
-			nodes = append(nodes, node)
-			idx += add
+	nodes := make([]Sexp, 0)
 
-		default:
-			node, add, err := parseExpression(tokens[idx:])
-			if err != nil {
-				log.Fatal("error parsing the list")
-			}
-			nodes = append(nodes, node)
-			idx += add
+	for idx < length && tokens[idx].Token != EOF {
+		expr, add, err := parseExpr(tokens[idx:])
+		if err != nil {
+			log.Fatal("Error parsing tokens: ", err)
 		}
+		idx += add
+		nodes = append(nodes, expr)
 	}
 	return nodes, nil
 }
 
-func parseList(tokens []Token) (Expression, int, error) {
+//Implement a list trivially as this for now
+func parseList(tokens []Token) (Sexp, int, error) {
 	idx, length := 0, len(tokens)
-	expr := Expression{}
+	arr := make([]Sexp, 0)
 	for idx < length && tokens[idx].Token != RPAREN {
-		switch tokens[idx].Token {
-		case LPAREN:
-			//nest call again
-			idx++
-			nestExpr, add, err := parseList(tokens[idx:])
-			if err != nil {
-				log.Fatal("Error parsing a nested list: ", err)
-			}
-			idx += add
-			expr.arguments = append(expr.arguments, nestExpr)
-		case PLUS, MINUS, DIVIDE, MULTIPLY:
-			expr.operator = tokens[idx].Token
-		default:
-			//This will be a call to expr
-			expr.arguments = append(expr.arguments, tokens[idx])
+		currExpr, add, err := parseExpr(tokens[idx:])
+		if err != nil {
+			return nil, 0, err
+		}
+		idx += add
+		arr = append(arr, currExpr)
+	}
+	return List(arr), idx + 1, nil
+
+}
+
+func parseExpr(tokens []Token) (Sexp, int, error) {
+	idx := 0
+	var expr Sexp
+	var err error
+	var add int
+
+	switch tokens[idx].Token {
+	case LPAREN:
+		idx++
+		expr, add, err = parseList(tokens[idx:])
+		if err != nil {
+			return nil, 0, err
+		}
+		idx += add
+	case INTEGER:
+		i, err := strconv.Atoi(tokens[idx].Literal)
+		if err != nil {
+			return nil, 0, err
 		}
 		idx++
-	}
-	return expr, idx + 1, nil
-
-}
-
-func parseSeq(tokens []Token) (Expression, int, error) {
-	idx, length := 0, len(tokens)
-	expr := Expression{}
-
-}
-
-func parseExpr(token Token) (interface{}, idx, error) {
-	expr := Expression{}
-	switch token.Token {
-	case LPAREN:
-		//something
-	case NUMBER:
+		expr = Number(i)
+	//eventually refactor to handle other symbols like identifiers
+	case PLUS, MULTIPLY, DIVIDE, MINUS:
+		expr = Symbol{ofType: tokens[idx].Token, value: tokens[idx].Literal}
 		idx++
-		return token, idx, nil
-	case ID:
-		//do some stuff
-		fmt.Println("deal with this")
+	default:
+		fmt.Println(tokens[idx])
+		fmt.Println("fix this")
 	}
 	return expr, idx, nil
 }
@@ -104,6 +125,14 @@ func parseExpr(token Token) (interface{}, idx, error) {
 /*
 Grammar
 
+number : /-?[0-9]+/ ;                    \
+symbol : '+' | '-' | '*' | '/' ;         \
+list  : ( <expr>* ) ;               \
+expr   : <number> | <symbol> | <list> ; \
+lispy  : /^/ <expr>* /$/ ;               \
+	- /^/ means start of the input is required (n/a atm, don't have a start token)
+	- /$/ means end of the input is required (EOF tag)
+-----------------------------------
 expr:  ID | NUM | list
 	ID = identifier like variable or binding
 	expr: ID | STR | NUM | list (but we'll ignore this for now to simplify things)
