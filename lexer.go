@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"unicode"
 )
@@ -17,6 +16,8 @@ const EXP TokenType = "EXP"
 const ENV TokenType = "ENV"
 const EOF TokenType = "EOF"
 
+const STRING TokenType = "STRING"
+const ID TokenType = "ID"
 const LPAREN TokenType = "LPAREN"
 const RPAREN TokenType = "RPAREN"
 const PLUS TokenType = "PLUS"
@@ -25,6 +26,11 @@ const MINUS TokenType = "MINUS"
 const MULTIPLY TokenType = "MULTIPLY"
 const DIVIDE TokenType = "DIVIDE"
 const IF TokenType = "IF"
+const TRUE TokenType = "TRUE"
+const FALSE TokenType = "FALSE" //nil as false, everything else is treated as true
+
+//some user defined token
+const IDEN TokenType = "IDEN"
 
 type Token struct {
 	Token   TokenType
@@ -82,6 +88,19 @@ func newToken(token TokenType, literal string) Token {
 	return Token{Token: token, Literal: literal}
 }
 
+//function to get entire string or symbol token
+func (l *Lexer) getUntil(until byte, token TokenType) Token {
+	old := l.Position
+	for l.peek() != until && l.Char != 0 {
+		l.advance()
+	}
+	//if nothing after symbol
+	if l.Char == 0 {
+		return newToken(token, l.Input[old:l.Position])
+	}
+	return newToken(token, l.Input[old:l.ReadPosition])
+}
+
 func (l *Lexer) scanToken() Token {
 	l.skipWhiteSpace()
 	var token Token
@@ -90,6 +109,13 @@ func (l *Lexer) scanToken() Token {
 		token = newToken(LPAREN, "(")
 	case ')':
 		token = newToken(RPAREN, ")")
+	case '`':
+		l.advance()
+		token = l.getUntil(' ', SYMBOL)
+	case '"':
+		//skip the first "
+		l.advance()
+		token = l.getUntil('"', STRING)
 	case '+':
 		token = newToken(PLUS, "+")
 	case '-':
@@ -125,23 +151,8 @@ func (l *Lexer) tokenize(source string) []Token {
 }
 
 //Takes as input the source code as a string and returns a list of tokens
-func readStr(source string) {
+func readStr(source string) []Token {
 	l := New(source)
 	tokens := l.tokenize(source)
-	//parse the tokens
-	for _, Token := range tokens {
-		fmt.Println(Token)
-	}
-
+	return tokens
 }
-
-/*
-Grammar
-
-expr:   ID | STR | NUM | list
-list:   ( seq )
-seq:       | expr seq
-(note ^ is an empty list)
-
-
-*/

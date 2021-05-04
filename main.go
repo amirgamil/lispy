@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 )
 
@@ -23,7 +24,14 @@ func PRINT(exp string) string {
 
 // repl
 func repl(str string) string {
-	readStr(str)
+	tokens := readStr(str)
+	exprs, err := parse(tokens)
+	if err != nil {
+		log.Fatal("Error parsing")
+	}
+	for idx, node := range exprs {
+		fmt.Println(idx, "=> ", node)
+	}
 	return ""
 	// return PRINT(EVAL(READ(str), ""))
 }
