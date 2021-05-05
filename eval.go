@@ -2,107 +2,101 @@ package main
 
 import (
 	"log"
-	"strconv"
 )
 
-func add(x int, y int) int {
-	return x + y
+//not convenient to have binOps as separate but for now, this is what we'll work with
+type Env struct {
+	store map[string]interface{}
 }
 
-func subtract(x int, y int) int {
-	return x - y
-}
+// func (e *Env) addDefinition(key string, value interface{}) {
+// 	e.store[key] = value
+// }
 
-func multiply(x int, y int) int {
-	return x * y
-}
+// func (e *Env) getBinding(key string) interface{} {
+// 	if v, found := e.store[key]; found {
+// 		return v
+// 	}
+// 	log.Fatal("Error, ", key, " has not previously been defined!")
+// 	return nil
+// }
 
-func divide(x int, y int) int {
-	return x / y
-}
-
-type fn func(int, int) int
-
-//eventually change struct and also to capture environment
-var ops map[string]fn
-
-func initState() {
+func initState() *Env {
 	//add more ops as need for function bodies, assignments etc
-	ops = make(map[string]fn)
-	ops["+"] = add
-	ops["-"] = subtract
-	ops["*"] = multiply
-	ops["/"] = divide
+	env := new(Env)
+	env.store = make(map[string]interface{})
+	return env
 }
 
-func evalSymbol(s Symbol) fn {
-	return ops[s.value]
+func (env *Env) evalSymbol(s SexpSymbol, args []Sexp) Sexp {
+	switch s.ofType {
+	case PLUS, MINUS, MULTIPLY, DIVIDE:
+		return binaryOperation(env, s.value, args)
+	}
+	//TODO: fix this bit
+	return SexpSymbol{} //env.getBinding(s.value)
 }
 
-func evalNumber(n Number) int {
+func (env *Env) evalNumber(n Number) int {
 	return int(n)
 }
 
-func evalList(n List) string {
-	var toReturn string
+func (env *Env) evalList(n List) Sexp {
+	var toReturn Sexp
+	//empty string
+	if len(n) == 0 {
+		return List{}
+	}
 	switch n[0].(type) {
-	case Symbol:
-		res := 0
-		original, ok := n[0].(Symbol)
-		var operation fn
-		if ok {
-			operation = evalSymbol(original)
-		} else {
+	case SexpSymbol:
+		symbol, ok := n[0].(SexpSymbol)
+		if !ok {
 			log.Fatal("error trying to interpret symbol")
 		}
+		arguments := make([]Sexp, 0)
+		//loop through elements in the list and carry out operation, will need to be adapted as we add more functionality
 		for i := 1; i < len(n); i++ {
-			test := evalNode(n[i])
-			intNode, err := strconv.Atoi(test)
-			if err != nil {
-				log.Fatal("error casting to int: ", err)
-			}
-			res = operation(res, intNode)
+			arguments = append(arguments, env.evalNode(n[i]))
 		}
-		toReturn = strconv.Itoa(res)
+		toReturn = env.evalSymbol(symbol, arguments)
+	//if it's just a list without a symbol at the front, treat it as data and return it
 	case List:
 		original, ok := n[0].(List)
 		if ok {
-			toReturn = evalList(original)
+			toReturn = env.evalList(original)
 		}
 		log.Fatal("error interpreting nested list")
-		toReturn = "error!"
 	default:
-		toReturn = n.String()
+		toReturn = n
 	}
 	return toReturn
 }
 
-func evalNode(node Sexp) string {
+//wrapper for evaluating an individual Sexp node in our AST
+func (env *Env) evalNode(node Sexp) Sexp {
+	var toReturn Sexp
 	switch node.(type) {
 	case List:
 		//Assert type since ast is composed of generic Sexp interface
 		original, ok := node.(List)
 		if ok {
-			test := evalList(original)
-			return test
+			toReturn = env.evalList(original)
 		}
 	case Number:
-		original, ok := node.(Number)
-		if ok {
-			num := evalNumber(original)
-			return strconv.Itoa(num)
-		}
+		toReturn = node
 	default:
-		return "error!"
+		//TODO: fix this later
+		log.Fatal("error unexpected onode")
 	}
-	return "error!"
+	return toReturn
 }
 
+//evaluates and interprets our AST
 func Eval(nodes []Sexp) []string {
-	initState()
+	env := initState()
 	res := make([]string, 0)
 	for _, node := range nodes {
-		res = append(res, evalNode(node))
+		res = append(res, env.evalNode(node).String())
 	}
 	return res
 }

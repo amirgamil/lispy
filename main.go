@@ -8,7 +8,7 @@ import (
 )
 
 // read
-func READ(str string) []Sexp {
+func read(str string) []Sexp {
 	tokens := readStr(str)
 	exprs, err := parse(tokens)
 	if err != nil {
@@ -18,12 +18,12 @@ func READ(str string) []Sexp {
 }
 
 // eval
-func EVAL(ast []Sexp, env string) []string {
+func eval(ast []Sexp, env string) []string {
 	return Eval(ast)
 }
 
 // print
-func PRINT(res []string) {
+func print(res []string) {
 	for _, result := range res {
 		fmt.Println(result)
 	}
@@ -31,7 +31,7 @@ func PRINT(res []string) {
 
 // repl
 func repl(str string) {
-	PRINT(EVAL(READ(str), ""))
+	print(eval(read(str), ""))
 }
 
 func main() {

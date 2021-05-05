@@ -18,13 +18,13 @@ type Sexp interface {
 }
 
 //Symbol
-type Symbol struct {
+type SexpSymbol struct {
 	//TODO: clean this up? don't know how yet
 	ofType TokenType
 	value  string
 }
 
-func (s Symbol) String() string {
+func (s SexpSymbol) String() string {
 	return s.value
 }
 
@@ -108,7 +108,7 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 	//eventually refactor to handle other symbols like identifiers
 	//create a map with all of these operators pre-stored and just get, or default, passing in tokentype to check if it exists
 	case PLUS, MULTIPLY, DIVIDE, MINUS:
-		expr = Symbol{ofType: tokens[idx].Token, value: tokens[idx].Literal}
+		expr = SexpSymbol{ofType: tokens[idx].Token, value: tokens[idx].Literal}
 		idx++
 	default:
 		log.Fatal("you screwed it up my dude")
@@ -123,6 +123,7 @@ number : /-?[0-9]+/ ;                    \
 symbol : '+' | '-' | '*' | '/' ;         \
 list  : ( <expr>* ) ;               \
 expr   : <number> | <symbol> | <list> ; \
+	- symbol = operator, variable, or function
 lispy  : /^/ <expr>* /$/ ;               \
 	- /^/ means start of the input is required (n/a atm, don't have a start token)
 	- /$/ means end of the input is required (EOF tag)

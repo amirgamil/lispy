@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"unicode"
 )
 
@@ -16,18 +15,36 @@ const EXP TokenType = "EXP"
 const ENV TokenType = "ENV"
 const EOF TokenType = "EOF"
 
-const STRING TokenType = "STRING"
-const ID TokenType = "ID"
+//eventually refactor to hashmap?
+
 const LPAREN TokenType = "LPAREN"
 const RPAREN TokenType = "RPAREN"
-const PLUS TokenType = "PLUS"
+
 const INTEGER TokenType = "INTEGER"
+
+//Symbols
+const PLUS TokenType = "PLUS"
 const MINUS TokenType = "MINUS"
+const STRING TokenType = "STRING"
 const MULTIPLY TokenType = "MULTIPLY"
 const DIVIDE TokenType = "DIVIDE"
+const EQUAL TokenType = "EQUAL"
+const GEQUAL TokenType = "GEQUAL"
+const LEQUAL TokenType = "LEQUAL"
+const GTHAN TokenType = "GTHAN"
+const LTHAN TokenType = "LTHAN"
+
+//To implement
+const ID TokenType = "ID"
 const IF TokenType = "IF"
+const DEFINE TokenType = "DEFINE"
+const PRINT TokenType = "PRINT"
 const TRUE TokenType = "TRUE"
-const FALSE TokenType = "FALSE" //nil as false, everything else is treated as true
+const FALSE TokenType = "FALSE"
+
+// symbols = map[string]TokenType{
+// 	"+":
+// }
 
 //some user defined token
 const IDEN TokenType = "IDEN"
@@ -84,6 +101,31 @@ func (l *Lexer) getInteger() Token {
 	return newToken(INTEGER, l.Input[old:l.ReadPosition])
 }
 
+func (l *Lexer) getSymbol() Token {
+	old := l.Position
+	for !unicode.IsSpace(rune(l.Char)) {
+		l.advance()
+	}
+	val := l.Input[old:l.ReadPosition]
+	var token Token
+	switch val {
+	case "define":
+		token = newToken(DEFINE, "define")
+	case "if":
+		token = newToken(IF, "if")
+	case "println":
+		token = newToken(PRINT, "println")
+	case "true":
+		token = newToken(TRUE, "true")
+	case "false", "nil":
+		token = newToken(FALSE, "false")
+	//will add others later, for now assume it's just a string
+	default:
+		token = newToken(STRING, val)
+	}
+	return token
+}
+
 func newToken(token TokenType, literal string) Token {
 	return Token{Token: token, Literal: literal}
 }
@@ -124,6 +166,18 @@ func (l *Lexer) scanToken() Token {
 		token = newToken(DIVIDE, "/")
 	case '*':
 		token = newToken(MULTIPLY, "*")
+	case '>':
+		if l.peek() == '=' {
+			token = newToken(GTHAN, ">")
+		} else {
+			token = newToken(GEQUAL, ">=")
+		}
+	case '<':
+		if l.peek() == '=' {
+			token = newToken(LTHAN, "<=")
+		} else {
+			token = newToken(LEQUAL, "<")
+		}
 	case 0:
 		token = newToken(EOF, "EOF")
 	default:
@@ -131,7 +185,7 @@ func (l *Lexer) scanToken() Token {
 			token = l.getInteger()
 		} else {
 			//more things potentially here
-			log.Fatal("whoah, you sure that's a valid character mate")
+			token = l.getSymbol()
 		}
 	}
 	l.advance()
