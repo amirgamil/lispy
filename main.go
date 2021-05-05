@@ -8,32 +8,30 @@ import (
 )
 
 // read
-func READ(str string) string {
-	return str
-}
-
-// eval
-func EVAL(ast string, env string) string {
-	return ast
-}
-
-// print
-func PRINT(exp string) string {
-	return exp
-}
-
-// repl
-func repl(str string) string {
+func READ(str string) []Sexp {
 	tokens := readStr(str)
 	exprs, err := parse(tokens)
 	if err != nil {
 		log.Fatal("Error parsing")
 	}
-	for idx, node := range exprs {
-		fmt.Println(idx, "=> ", node)
+	return exprs
+}
+
+// eval
+func EVAL(ast []Sexp, env string) []string {
+	return Eval(ast)
+}
+
+// print
+func PRINT(res []string) {
+	for _, result := range res {
+		fmt.Println(result)
 	}
-	return ""
-	// return PRINT(EVAL(READ(str), ""))
+}
+
+// repl
+func repl(str string) {
+	PRINT(EVAL(READ(str), ""))
 }
 
 func main() {
@@ -45,7 +43,7 @@ func main() {
 		scanner.Scan()
 		// Holds the string that was scanned
 		text := scanner.Text()
-		fmt.Println(repl(text))
+		repl(text)
 
 	}
 }

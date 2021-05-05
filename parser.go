@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"strconv"
 )
@@ -38,8 +37,7 @@ func (n Number) String() string {
 
 //List node in our AST
 //Implement a list trivially as this for now
-//If I decide to add arrays later on, I can think about implenting the arrays as below
-//and the list as a LinkedList like Glisp
+//change to linkedlist late (since in Lisp an Sexp is defined inductively)
 type List []Sexp
 
 func (l List) String() string {
@@ -53,10 +51,6 @@ func (l List) String() string {
 	}
 	strBuilder += "]"
 	return strBuilder
-}
-
-type SExpression struct {
-	arguments List
 }
 
 func parse(tokens []Token) ([]Sexp, error) {
@@ -112,12 +106,12 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 		idx++
 		expr = Number(i)
 	//eventually refactor to handle other symbols like identifiers
+	//create a map with all of these operators pre-stored and just get, or default, passing in tokentype to check if it exists
 	case PLUS, MULTIPLY, DIVIDE, MINUS:
 		expr = Symbol{ofType: tokens[idx].Token, value: tokens[idx].Literal}
 		idx++
 	default:
-		fmt.Println(tokens[idx])
-		fmt.Println("fix this")
+		log.Fatal("you screwed it up my dude")
 	}
 	return expr, idx, nil
 }
