@@ -214,7 +214,7 @@ func (l *Lexer) tokenize(source string) []Token {
 }
 
 //Takes as input the source code as a string and returns a list of tokens
-func readStr(source string) []Token {
+func Read(source string) []Token {
 	l := New(source)
 	tokens := l.tokenize(source)
 	return tokens

@@ -53,7 +53,7 @@ func (l List) String() string {
 	return strBuilder
 }
 
-func parse(tokens []Token) ([]Sexp, error) {
+func Parse(tokens []Token) ([]Sexp, error) {
 	idx, length := 0, len(tokens)
 	nodes := make([]Sexp, 0)
 

@@ -9,7 +9,7 @@ type Env struct {
 	store map[string]interface{}
 }
 
-func initState() *Env {
+func InitState() *Env {
 	//add more ops as need for function bodies, assignments etc
 	env := new(Env)
 	env.store = make(map[string]interface{})

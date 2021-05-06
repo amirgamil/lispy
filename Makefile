@@ -1,4 +1,11 @@
+CMD= ./cmd/lispy.go
+RUN = go run ${CMD}
 
+all: repl build
 
 repl:
-	go build 
+	${RUN} -repl
+
+
+build:
+	go build -o lispy ${CMD}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -10,9 +11,9 @@ import (
 )
 
 // read
-func read(str string) []Sexp {
-	tokens := lispy.readStr(str)
-	exprs, err := lispy.parse(tokens)
+func read(str string) []lispy.Sexp {
+	tokens := lispy.Read(str)
+	exprs, err := lispy.Parse(tokens)
 	if err != nil {
 		log.Fatal("Error parsing")
 	}
@@ -21,7 +22,7 @@ func read(str string) []Sexp {
 
 // eval
 func eval(ast []lispy.Sexp, env *lispy.Env) []string {
-	return Eval(ast, env)
+	return lispy.Eval(ast, env)
 }
 
 // print
@@ -36,17 +37,32 @@ func repl(str string, env *lispy.Env) {
 	print(eval(read(str), env))
 }
 
-func main() {
-	// repl loop
-	scanner := bufio.NewScanner(os.Stdin)
-	env := initState()
-	for {
-		fmt.Print("user> ")
-		// reads user input until \n by default
-		scanner.Scan()
-		// Holds the string that was scanned
-		text := scanner.Text()
-		repl(text, env)
+const cliVersion = "0.1.0"
+const helpMessage = `
+Welcome to Lispy! Hack away
+`
 
+func main() {
+
+	flag.Usage = func() {
+		fmt.Printf(helpMessage, cliVersion)
+		flag.PrintDefaults()
+	}
+
+	isRepl := flag.Bool("repl", false, "Run as an interactive repl")
+	flag.Parse()
+	if *isRepl {
+		// repl loop
+		scanner := bufio.NewScanner(os.Stdin)
+		env := lispy.InitState()
+		for {
+			fmt.Print("lispy> ")
+			// reads user input until \n by default
+			scanner.Scan()
+			// Holds the string that was scanned
+			text := scanner.Text()
+			repl(text, env)
+
+		}
 	}
 }
