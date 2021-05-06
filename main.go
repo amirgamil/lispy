@@ -18,8 +18,8 @@ func read(str string) []Sexp {
 }
 
 // eval
-func eval(ast []Sexp, env string) []string {
-	return Eval(ast)
+func eval(ast []Sexp, env *Env) []string {
+	return Eval(ast, env)
 }
 
 // print
@@ -30,20 +30,21 @@ func print(res []string) {
 }
 
 // repl
-func repl(str string) {
-	print(eval(read(str), ""))
+func repl(str string, env *Env) {
+	print(eval(read(str), env))
 }
 
 func main() {
 	// repl loop
 	scanner := bufio.NewScanner(os.Stdin)
+	env := initState()
 	for {
 		fmt.Print("user> ")
 		// reads user input until \n by default
 		scanner.Scan()
 		// Holds the string that was scanned
 		text := scanner.Text()
-		repl(text)
+		repl(text, env)
 
 	}
 }

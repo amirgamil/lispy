@@ -9,18 +9,6 @@ type Env struct {
 	store map[string]interface{}
 }
 
-// func (e *Env) addDefinition(key string, value interface{}) {
-// 	e.store[key] = value
-// }
-
-// func (e *Env) getBinding(key string) interface{} {
-// 	if v, found := e.store[key]; found {
-// 		return v
-// 	}
-// 	log.Fatal("Error, ", key, " has not previously been defined!")
-// 	return nil
-// }
-
 func initState() *Env {
 	//add more ops as need for function bodies, assignments etc
 	env := new(Env)
@@ -30,8 +18,18 @@ func initState() *Env {
 
 func (env *Env) evalSymbol(s SexpSymbol, args []Sexp) Sexp {
 	switch s.ofType {
+	case SYMBOL:
+		return getBinding(env, s.value, args)
 	case PLUS, MINUS, MULTIPLY, DIVIDE:
 		return binaryOperation(env, s.value, args)
+	case GEQUAL, LEQUAL, GTHAN, LTHAN:
+		return relationalOperator(env, s.value, args)
+	case AND, OR, NOT:
+		return logicalOperator(env, s.value, args)
+	case TRUE, FALSE:
+		return s
+	case DEFINE:
+		return definition(env, args[0].String(), args[1:])
 	}
 	//TODO: fix this bit
 	return SexpSymbol{} //env.getBinding(s.value)
@@ -47,18 +45,26 @@ func (env *Env) evalList(n List) Sexp {
 	if len(n) == 0 {
 		return List{}
 	}
+
 	switch n[0].(type) {
 	case SexpSymbol:
 		symbol, ok := n[0].(SexpSymbol)
 		if !ok {
 			log.Fatal("error trying to interpret symbol")
 		}
-		arguments := make([]Sexp, 0)
-		//loop through elements in the list and carry out operation, will need to be adapted as we add more functionality
-		for i := 1; i < len(n); i++ {
-			arguments = append(arguments, env.evalNode(n[i]))
+		switch symbol.ofType {
+		case DEFINE:
+			toReturn = env.evalSymbol(symbol, []Sexp{n[1], n[2]})
+		case PLUS, MINUS, MULTIPLY, DIVIDE, GEQUAL, LEQUAL, GTHAN, LTHAN, AND, OR, NOT:
+			arguments := make([]Sexp, 0)
+			//loop through elements in the list and carry out operation, will need to be adapted as we add more functionality
+			for i := 1; i < len(n); i++ {
+				arguments = append(arguments, env.evalNode(n[i]))
+			}
+			toReturn = env.evalSymbol(symbol, arguments)
+		default:
+			toReturn = env.evalSymbol(symbol, []Sexp{})
 		}
-		toReturn = env.evalSymbol(symbol, arguments)
 	//if it's just a list without a symbol at the front, treat it as data and return it
 	case List:
 		original, ok := n[0].(List)
@@ -84,16 +90,20 @@ func (env *Env) evalNode(node Sexp) Sexp {
 		}
 	case Number:
 		toReturn = node
+	case SexpSymbol:
+		original, ok := node.(SexpSymbol)
+		if ok {
+			toReturn = env.evalSymbol(original, []Sexp{})
+		}
 	default:
 		//TODO: fix this later
-		log.Fatal("error unexpected onode")
+		log.Fatal("error unexpected node")
 	}
 	return toReturn
 }
 
 //evaluates and interprets our AST
-func Eval(nodes []Sexp) []string {
-	env := initState()
+func Eval(nodes []Sexp, env *Env) []string {
 	res := make([]string, 0)
 	for _, node := range nodes {
 		res = append(res, env.evalNode(node).String())

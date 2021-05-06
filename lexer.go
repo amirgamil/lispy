@@ -41,6 +41,9 @@ const DEFINE TokenType = "DEFINE"
 const PRINT TokenType = "PRINT"
 const TRUE TokenType = "TRUE"
 const FALSE TokenType = "FALSE"
+const AND TokenType = "AND"
+const OR TokenType = "OR"
+const NOT TokenType = "NOT"
 
 // symbols = map[string]TokenType{
 // 	"+":
@@ -103,9 +106,10 @@ func (l *Lexer) getInteger() Token {
 
 func (l *Lexer) getSymbol() Token {
 	old := l.Position
-	for !unicode.IsSpace(rune(l.Char)) {
+	for !unicode.IsSpace(rune(l.peek())) && l.peek() != 0 && l.peek() != ')' {
 		l.advance()
 	}
+	//use position because when l.Char is at a space, l.ReadPosition will be one ahead
 	val := l.Input[old:l.ReadPosition]
 	var token Token
 	switch val {
@@ -119,9 +123,15 @@ func (l *Lexer) getSymbol() Token {
 		token = newToken(TRUE, "true")
 	case "false", "nil":
 		token = newToken(FALSE, "false")
-	//will add others later, for now assume it's just a string
+	case "and":
+		token = newToken(AND, "and")
+	case "or":
+		token = newToken(OR, "or")
+	case "not":
+		token = newToken(NOT, "not")
+	//will add others later
 	default:
-		token = newToken(STRING, val)
+		token = newToken(SYMBOL, val)
 	}
 	return token
 }
@@ -133,14 +143,11 @@ func newToken(token TokenType, literal string) Token {
 //function to get entire string or symbol token
 func (l *Lexer) getUntil(until byte, token TokenType) Token {
 	old := l.Position
-	for l.peek() != until && l.Char != 0 {
+	//get until assumes we eat the last token, which is why we don't use peek
+	for l.Char != until && l.Char != 0 {
 		l.advance()
 	}
-	//if nothing after symbol
-	if l.Char == 0 {
-		return newToken(token, l.Input[old:l.Position])
-	}
-	return newToken(token, l.Input[old:l.ReadPosition])
+	return newToken(token, l.Input[old:l.Position])
 }
 
 func (l *Lexer) scanToken() Token {
@@ -158,6 +165,7 @@ func (l *Lexer) scanToken() Token {
 		//skip the first "
 		l.advance()
 		token = l.getUntil('"', STRING)
+		//skip final quote
 	case '+':
 		token = newToken(PLUS, "+")
 	case '-':
