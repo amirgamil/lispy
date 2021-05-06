@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	"github.com/amirgamil/lispy/pkg/lispy"
 )
 
 // read
 func read(str string) []Sexp {
-	tokens := readStr(str)
-	exprs, err := parse(tokens)
+	tokens := lispy.readStr(str)
+	exprs, err := lispy.parse(tokens)
 	if err != nil {
 		log.Fatal("Error parsing")
 	}
@@ -18,7 +20,7 @@ func read(str string) []Sexp {
 }
 
 // eval
-func eval(ast []Sexp, env *Env) []string {
+func eval(ast []lispy.Sexp, env *lispy.Env) []string {
 	return Eval(ast, env)
 }
 
@@ -30,7 +32,7 @@ func print(res []string) {
 }
 
 // repl
-func repl(str string, env *Env) {
+func repl(str string, env *lispy.Env) {
 	print(eval(read(str), env))
 }
 

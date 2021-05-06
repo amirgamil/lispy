@@ -1,4 +1,4 @@
-package main
+package lispy
 
 import (
 	"log"
@@ -27,6 +27,8 @@ func (env *Env) evalSymbol(s SexpSymbol, args []Sexp) Sexp {
 	case AND, OR, NOT:
 		return logicalOperator(env, s.value, args)
 	case TRUE, FALSE:
+		return s
+	case QUOTE:
 		return s
 	case IF:
 		return conditionalStatement(env, s.value, args)
@@ -66,8 +68,8 @@ func (env *Env) evalList(n List) Sexp {
 			}
 			toReturn = env.evalSymbol(symbol, n[1:])
 		case IF:
-			if len(n) < 2 {
-				log.Fatal("Syntax error, define an if statement correctly!")
+			if len(n) < 3 {
+				log.Fatal("Syntax error, too few arguments to if")
 			}
 			//condition for the if statement will be a list
 			condition, ok := n[1].(List)
@@ -76,7 +78,7 @@ func (env *Env) evalList(n List) Sexp {
 			}
 			arguments = append(arguments, env.evalList(condition))
 			arguments = append(arguments, env.evalNode(n[2]))
-			if len(n) == 3 {
+			if len(n) == 4 {
 				arguments = append(arguments, env.evalNode(n[3]))
 			}
 			toReturn = env.evalSymbol(symbol, arguments)

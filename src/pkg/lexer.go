@@ -1,4 +1,4 @@
-package main
+package lispy
 
 import (
 	"unicode"
@@ -44,6 +44,7 @@ const FALSE TokenType = "FALSE"
 const AND TokenType = "AND"
 const OR TokenType = "OR"
 const NOT TokenType = "NOT"
+const QUOTE TokenType = "QUOTE"
 
 // symbols = map[string]TokenType{
 // 	"+":
@@ -160,7 +161,7 @@ func (l *Lexer) scanToken() Token {
 		token = newToken(RPAREN, ")")
 	case '`':
 		l.advance()
-		token = l.getUntil(' ', SYMBOL)
+		token = l.getUntil(' ', QUOTE)
 	case '"':
 		//skip the first "
 		l.advance()
