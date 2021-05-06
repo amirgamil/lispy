@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 )
@@ -30,6 +31,36 @@ func getBinding(env *Env, key string, args []Sexp) Sexp {
 	}
 	log.Fatal("Error, ", key, " has not previously been defined!")
 	return nil
+}
+
+/******* handle conditional statements *********/
+func conditionalStatement(env *Env, name string, args []Sexp) Sexp {
+	condition, okC := args[0].(SexpSymbol)
+	var toReturn Sexp
+	if !okC {
+		log.Fatal("Error interpreting condition for the if statement!")
+	}
+	//TODO: adapt this for expressions or functions specifically? Not sure how do that
+	if condition.ofType == TRUE {
+		toReturn = args[1]
+	} else {
+		if len(args) > 2 {
+			toReturn = args[2]
+		} else {
+			//no provided else block despite the condition evaluating to such
+			toReturn = SexpSymbol{ofType: FALSE, value: "nil"}
+		}
+	}
+	return toReturn
+}
+
+/******* handle println statements *********/
+func printlnStatement(env *Env, name string, args []Sexp) Sexp {
+	for _, arg := range args {
+		fmt.Println(arg)
+		fmt.Println(arg.String())
+	}
+	return SexpSymbol{}
 }
 
 /******* handle logical (and or not) operations *********/

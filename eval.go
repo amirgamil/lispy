@@ -28,8 +28,12 @@ func (env *Env) evalSymbol(s SexpSymbol, args []Sexp) Sexp {
 		return logicalOperator(env, s.value, args)
 	case TRUE, FALSE:
 		return s
+	case IF:
+		return conditionalStatement(env, s.value, args)
 	case DEFINE:
 		return definition(env, args[0].String(), args[1:])
+	case PRINT:
+		return printlnStatement(env, s.String(), args)
 	}
 	//TODO: fix this bit
 	return SexpSymbol{} //env.getBinding(s.value)
@@ -52,11 +56,31 @@ func (env *Env) evalList(n List) Sexp {
 		if !ok {
 			log.Fatal("error trying to interpret symbol")
 		}
+		arguments := make([]Sexp, 0)
 		switch symbol.ofType {
 		case DEFINE:
 			toReturn = env.evalSymbol(symbol, []Sexp{n[1], n[2]})
+		case PRINT:
+			if len(n) <= 1 {
+				log.Fatal("Error trying to print nothing!")
+			}
+			toReturn = env.evalSymbol(symbol, n[1:])
+		case IF:
+			if len(n) < 2 {
+				log.Fatal("Syntax error, define an if statement correctly!")
+			}
+			//condition for the if statement will be a list
+			condition, ok := n[1].(List)
+			if !ok {
+				log.Fatal("Error - please provide a valid condition for the if statement")
+			}
+			arguments = append(arguments, env.evalList(condition))
+			arguments = append(arguments, env.evalNode(n[2]))
+			if len(n) == 3 {
+				arguments = append(arguments, env.evalNode(n[3]))
+			}
+			toReturn = env.evalSymbol(symbol, arguments)
 		case PLUS, MINUS, MULTIPLY, DIVIDE, GEQUAL, LEQUAL, GTHAN, LTHAN, AND, OR, NOT:
-			arguments := make([]Sexp, 0)
 			//loop through elements in the list and carry out operation, will need to be adapted as we add more functionality
 			for i := 1; i < len(n); i++ {
 				arguments = append(arguments, env.evalNode(n[i]))

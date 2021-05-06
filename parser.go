@@ -107,7 +107,7 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 		expr = Number(i)
 	//eventually refactor to handle other symbols like identifiers
 	//create a map with all of these operators pre-stored and just get, or default, passing in tokentype to check if it exists
-	case PLUS, MULTIPLY, DIVIDE, MINUS, DEFINE, STRING, SYMBOL, TRUE, FALSE, GEQUAL, LEQUAL, GTHAN, LTHAN, AND, OR, NOT:
+	case PLUS, MULTIPLY, DIVIDE, MINUS, DEFINE, STRING, SYMBOL, TRUE, FALSE, GEQUAL, LEQUAL, GTHAN, LTHAN, AND, OR, NOT, IF, PRINT:
 		expr = SexpSymbol{ofType: tokens[idx].Token, value: tokens[idx].Literal}
 		idx++
 	default:
