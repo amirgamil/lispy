@@ -21,6 +21,7 @@ const LPAREN TokenType = "LPAREN"
 const RPAREN TokenType = "RPAREN"
 
 const INTEGER TokenType = "INTEGER"
+const FLOAT TokenType = "FLOAT"
 
 //Symbols
 const PLUS TokenType = "PLUS"
@@ -96,11 +97,23 @@ func (l *Lexer) skipWhiteSpace() {
 	}
 }
 
+func (l *Lexer) getFloat(start int) Token {
+	//advance to skip .
+	l.advance()
+	for unicode.IsDigit(rune(l.peek())) {
+		l.advance()
+	}
+	return newToken(FLOAT, l.Input[start:l.ReadPosition])
+}
+
 func (l *Lexer) getInteger() Token {
 	old := l.Position
 	//peek and not advance since advance is called at the end of scanToken, and this could cause us to jump and skip a step
 	for unicode.IsDigit(rune(l.peek())) {
 		l.advance()
+	}
+	if l.peek() == '.' {
+		return l.getFloat(old)
 	}
 	return newToken(INTEGER, l.Input[old:l.ReadPosition])
 }
@@ -169,6 +182,8 @@ func (l *Lexer) scanToken() Token {
 		//skip final quote
 	case '+':
 		token = newToken(PLUS, "+")
+	case '.':
+		token = l.getFloat(l.Position)
 	case '-':
 		token = newToken(MINUS, "-")
 	case '/':

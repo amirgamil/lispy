@@ -1,6 +1,7 @@
 package lispy
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 )
@@ -28,11 +29,18 @@ func (s SexpSymbol) String() string {
 	return s.value
 }
 
-//Number
-type Number int
+// SexpInt
+type SexpInt int
 
-func (n Number) String() string {
+func (n SexpInt) String() string {
 	return strconv.Itoa(int(n))
+}
+
+//SexpFloat
+type SexpFloat float64
+
+func (n SexpFloat) String() string {
+	return fmt.Sprintf("%f", n)
 }
 
 //List node in our AST
@@ -104,7 +112,15 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 			return nil, 0, err
 		}
 		idx++
-		expr = Number(i)
+		expr = SexpInt(i)
+	case FLOAT:
+		i, err := strconv.ParseFloat(tokens[idx].Literal, 64)
+		if err != nil {
+			return nil, 0, err
+		}
+		expr = SexpFloat(i)
+		idx++
+
 	//eventually refactor to handle other symbols like identifiers
 	//create a map with all of these operators pre-stored and just get, or default, passing in tokentype to check if it exists
 	case PLUS, MULTIPLY, DIVIDE, MINUS, DEFINE, STRING, SYMBOL, TRUE, FALSE, GEQUAL, LEQUAL, GTHAN, LTHAN, AND, OR, NOT, IF, PRINT, QUOTE:

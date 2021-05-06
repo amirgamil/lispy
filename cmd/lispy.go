@@ -65,4 +65,22 @@ func main() {
 
 		}
 	}
+
+	// execFile := func(path string) error {
+	// loop:
+	// 	for {
+	// 		select {
+	// 		case e, ok := <-errors:
+	// 			if ok {
+	// 				logSafeErr(e.reason,
+	// 					fmt.Sprintf("in %s\n\t-> ", path)+e.message)
+	// 			}
+	// 			break loop
+	// 		case <-values:
+	// 			// continue
+	// 		}
+	// 	}
+
+	// 	return nil
+	// }
 }

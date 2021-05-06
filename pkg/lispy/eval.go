@@ -41,7 +41,7 @@ func (env *Env) evalSymbol(s SexpSymbol, args []Sexp) Sexp {
 	return SexpSymbol{} //env.getBinding(s.value)
 }
 
-func (env *Env) evalNumber(n Number) int {
+func (env *Env) evalNumber(n SexpInt) int {
 	return int(n)
 }
 
@@ -114,7 +114,7 @@ func (env *Env) evalNode(node Sexp) Sexp {
 		if ok {
 			toReturn = env.evalList(original)
 		}
-	case Number:
+	case SexpInt, SexpFloat:
 		toReturn = node
 	case SexpSymbol:
 		original, ok := node.(SexpSymbol)

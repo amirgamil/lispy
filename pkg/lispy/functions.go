@@ -26,8 +26,7 @@ func getBinding(env *Env, key string, args []Sexp) Sexp {
 		if !ok {
 			log.Fatal("error converting stored data to a string")
 		}
-		//TODO: fix ofType
-		return SexpSymbol{ofType: INTEGER, value: value.String()}
+		return value
 	}
 	log.Fatal("Error, ", key, " has not previously been defined!")
 	return nil
@@ -99,7 +98,7 @@ func getBoolFromTokenType(symbol Sexp) bool {
 	if !ok {
 		log.Fatal("Error, invalid input to logical operation!")
 	}
-	if value.ofType == TRUE {
+	if value.ofType != FALSE {
 		return true
 	}
 	return false
@@ -122,15 +121,15 @@ func handleLogicalOp(name string, log ...bool) bool {
 func relationalOperator(env *Env, name string, args []Sexp) Sexp {
 	result := true
 	tokenType := TRUE
-	initial, ok := args[0].(Number)
+	initial, ok := args[0].(SexpInt)
 
 	if !ok {
-		log.Fatal("Error, must provide only a number with a relational operator")
+		log.Fatal("Error, must provide only a  SexpInt with a relational operator")
 	}
 	for i := 1; i < len(args); i++ {
-		curr, ok := args[i].(Number)
+		curr, ok := args[i].(SexpInt)
 		if !ok {
-			log.Fatal("Error, must provide only a number with a relational operator")
+			log.Fatal("Error, must provide only a SexpInter with a relational operator")
 		}
 		result := handleRelOperator(name, initial, curr)
 		if result == false {
@@ -140,7 +139,7 @@ func relationalOperator(env *Env, name string, args []Sexp) Sexp {
 	return SexpSymbol{ofType: tokenType, value: strconv.FormatBool(result)}
 }
 
-func handleRelOperator(name string, x Number, y Number) bool {
+func handleRelOperator(name string, x SexpInt, y SexpInt) bool {
 	var result bool
 	switch name {
 	case ">":
@@ -157,45 +156,84 @@ func handleRelOperator(name string, x Number, y Number) bool {
 
 /******* handle binary arithmetic operations *********/
 func binaryOperation(env *Env, name string, args []Sexp) Sexp {
-	res := Number(0)
+	var res Sexp
+	if name == "+" || name == "-" {
+		res = SexpInt(0)
+	} else {
+		res = SexpInt(1)
+	}
 	for _, arg := range args {
-		//check types that we're dealing with numbers first
-		x, ok1 := arg.(Number)
-		if !ok1 {
-			log.Fatal("Can't pass a non-Number type to an arithmetic calculation")
+		//pass in new argument under consideration first for compare operation
+		switch term := arg.(type) {
+		case SexpFloat:
+			res = numericMatchFloat(name, term, res)
+		case SexpInt:
+			res = numericMatchInt(name, term, res)
+
 		}
-		res = handleBinOperation(name, res, x)
 	}
 	return res
 }
 
-func handleBinOperation(name string, x Number, y Number) Number {
-	var result Number
+func numericMatchInt(name string, x SexpInt, y Sexp) Sexp {
+	var res Sexp
+	switch i := y.(type) {
+	case SexpInt:
+		res = numericOpInt(name, x, i)
+	case SexpFloat:
+		res = numericOpFloat(name, SexpFloat(x), i)
+	default:
+		log.Fatal("Error adding two numbers!")
+	}
+	return res
+}
+
+func numericMatchFloat(name string, x SexpFloat, y Sexp) Sexp {
+	var res Sexp
+	switch i := y.(type) {
+	case SexpInt:
+		res = numericOpFloat(name, x, SexpFloat(i))
+	case SexpFloat:
+		res = numericOpFloat(name, x, i)
+	default:
+		log.Fatal("Error adding two numbers!")
+	}
+	return res
+}
+
+func numericOpInt(name string, x SexpInt, y SexpInt) Sexp {
+	var res Sexp
 	switch name {
 	case "+":
-		result = add(x, y)
+		res = x + y
 	case "-":
-		result = subtract(x, y)
-	case "*":
-		result = multiply(x, y)
+		res = x - y
 	case "/":
-		result = divide(x, y)
+		if x%y == 0 {
+			res = x / y
+		} else {
+			res = SexpFloat(x) / SexpFloat(y)
+		}
+	case "*":
+		res = x * y
+	default:
+		log.Fatal("Error invalid operation")
 	}
-	return result
+	return res
+
 }
 
-func add(x Number, y Number) Number {
-	return x + y
-}
-
-func subtract(x Number, y Number) Number {
-	return x - y
-}
-
-func multiply(x Number, y Number) Number {
-	return x * y
-}
-
-func divide(x Number, y Number) Number {
-	return x / y
+func numericOpFloat(name string, x SexpFloat, y SexpFloat) Sexp {
+	var res Sexp
+	switch name {
+	case "+":
+		res = x + y
+	case "-":
+		res = x - y
+	case "/":
+		res = x / y
+	case "*":
+		res = x * y
+	}
+	return res
 }
