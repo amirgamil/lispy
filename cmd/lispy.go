@@ -51,7 +51,10 @@ func main() {
 
 	isRepl := flag.Bool("repl", false, "Run as an interactive repl")
 	flag.Parse()
-	if *isRepl {
+	args := flag.Args()
+	fmt.Println(args)
+	//default to repl if no files given
+	if *isRepl || len(args) == 0 {
 		// repl loop
 		scanner := bufio.NewScanner(os.Stdin)
 		env := lispy.InitState()
@@ -64,23 +67,11 @@ func main() {
 			repl(text, env)
 
 		}
+	} else {
+		// filePath := args[0]
+		// file, err := os.Open(filePath)
+
+		// toke := make(chan lispy.Token)
+		// nodes := make(chan lispy.Sexp)
 	}
-
-	// execFile := func(path string) error {
-	// loop:
-	// 	for {
-	// 		select {
-	// 		case e, ok := <-errors:
-	// 			if ok {
-	// 				logSafeErr(e.reason,
-	// 					fmt.Sprintf("in %s\n\t-> ", path)+e.message)
-	// 			}
-	// 			break loop
-	// 		case <-values:
-	// 			// continue
-	// 		}
-	// 	}
-
-	// 	return nil
-	// }
 }

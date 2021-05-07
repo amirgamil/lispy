@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 )
 
 // const (
@@ -19,8 +20,8 @@ type Sexp interface {
 }
 
 //Symbol
+//have dedicated types for strings and bools or this suffices?
 type SexpSymbol struct {
-	//TODO: clean this up? don't know how yet
 	ofType TokenType
 	value  string
 }
@@ -45,20 +46,60 @@ func (n SexpFloat) String() string {
 
 //List node in our AST
 //Implement a list trivially as this for now
-//change to linkedlist late (since in Lisp an Sexp is defined inductively)
-type List []Sexp
+//change to linkedlist later (since in Lisp an Sexp is defined inductively)
+type SexpList struct {
+	ofType TokenType
+	value  []Sexp
+}
 
-func (l List) String() string {
-	if len(l) == 0 {
+func (l SexpList) String() string {
+	if len(l.value) == 0 {
 		return "[]"
 	}
 
-	strBuilder := "["
-	for i := 0; i < len(l); i++ {
-		strBuilder += " " + l[i].String()
+	strBuilder := make([]string, 0)
+	strBuilder = append(strBuilder, "[")
+	for i := 0; i < len(l.value); i++ {
+		strBuilder = append(strBuilder, l.value[i].String())
 	}
-	strBuilder += "]"
-	return strBuilder
+	strBuilder = append(strBuilder, "]")
+	return strings.Join(strBuilder, ",")
+}
+
+//SexpFunction Literal to store the functions when parsing them
+type SexpFunctionLiteral struct {
+	name string
+	//when we store the arguments, will call arg.String() for each arg - may need to be fixed for some edge cases
+	arguments SexpList
+	body      Sexp
+}
+
+func (f SexpFunctionLiteral) String() string {
+	args := make([]string, 0)
+	for _, node := range f.arguments.value {
+		args = append(args, node.String())
+	}
+	return fmt.Sprintf("Define (%s) on (%s)",
+		f.name,
+		strings.Join(args, ", "))
+}
+
+//Is this supposed to be identical?
+type SexpFunctionCall struct {
+	//for now keep arguments as string, in future potentially refacto wrap in SexpIdentifierNode
+	name      string
+	arguments SexpList
+	body      Sexp
+}
+
+func (f SexpFunctionCall) String() string {
+	args := make([]string, 0)
+	for _, node := range f.arguments.value {
+		args = append(args, node.String())
+	}
+	return fmt.Sprintf("Define (%s) on (%s)",
+		f.body,
+		strings.Join(args, ", "))
 }
 
 func Parse(tokens []Token) ([]Sexp, error) {
@@ -88,8 +129,66 @@ func parseList(tokens []Token) (Sexp, int, error) {
 		idx += add
 		arr = append(arr, currExpr)
 	}
-	return List(arr), idx + 1, nil
+	return SexpList{ofType: LIST, value: arr}, idx + 1, nil
+}
 
+//parses array e.g. in arguments of a function
+func parseArray(tokens []Token) (SexpList, int, error) {
+	idx, length := 0, len(tokens)
+	arr := make([]Sexp, 0)
+
+	for idx < length && tokens[idx].Token != RSQUARE {
+		expr, add, err := parseExpr(tokens[idx:])
+		if err != nil {
+			return SexpList{}, 0, err
+		}
+		idx += add
+		arr = append(arr, expr)
+	}
+	return SexpList{ofType: ARRAY, value: arr}, idx + 1, nil
+}
+
+//parses a function literal
+func parseFunctionLiteral(tokens []Token) (Sexp, int, error) {
+	idx := 0
+	if tokens[0].Token != SYMBOL {
+		log.Fatal("Unexpected syntax trying to define a function")
+	}
+	//function name will be at index 0
+	name := tokens[0].Literal
+	//skip the [ and go to the next character
+	idx += 2
+	//parse arguments first
+	args, add, err := parseArray(tokens[idx:])
+	if err != nil {
+		return nil, 0, err
+	}
+	idx += add
+	//parse body of the function which which will be an Sexpr
+	body, addBlock, err := parseList(tokens[idx:])
+	if err != nil {
+		return nil, 0, err
+	}
+	idx += addBlock
+	//entire function include define was enclosed in () so skip 1 to get past )
+	return SexpFunctionLiteral{name: name, arguments: args, body: body}, idx + 1, nil
+}
+
+func parseFunctionCall(tokens []Token) (Sexp, int, error) {
+	idx := 0
+	name := tokens[0].Literal
+	idx += 1
+	args, add, err := parseList(tokens[idx:])
+	//is there a better way than to type assert?
+	origArgs, isArgs := args.(SexpList)
+	if !isArgs {
+		log.Fatal("Error parsing function parameters")
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+	idx += add
+	return SexpFunctionCall{name: name, arguments: origArgs, body: nil}, idx, nil
 }
 
 func parseExpr(tokens []Token) (Sexp, int, error) {
@@ -101,11 +200,18 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 	switch tokens[idx].Token {
 	case LPAREN:
 		idx++
-		expr, add, err = parseList(tokens[idx:])
+		//check if this is a function call i.e. the next token is a symbol
+		if idx < len(tokens) && tokens[idx].Token == SYMBOL {
+			expr, add, err = parseFunctionCall(tokens[idx:])
+		} else {
+			expr, add, err = parseList(tokens[idx:])
+		}
+		idx += add
 		if err != nil {
 			return nil, 0, err
 		}
-		idx += add
+
+	//not DRY, very similar to LPAREN but keep since handling function may change (wait until confirmed)
 	case INTEGER:
 		i, err := strconv.Atoi(tokens[idx].Literal)
 		if err != nil {
@@ -120,10 +226,24 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 		}
 		expr = SexpFloat(i)
 		idx++
-
+	case DEFINE:
+		//look ahead one to check if it's a function or just data-binding
+		if idx+2 < len(tokens) && tokens[idx+2].Token == LSQUARE {
+			//skip define token
+			idx++
+			expr, add, err = parseFunctionLiteral(tokens[idx:])
+			if err != nil {
+				return nil, 0, err
+			}
+			idx += add
+		} else {
+			expr = SexpSymbol{ofType: tokens[idx].Token, value: tokens[idx].Literal}
+			//POSSIBLE FEATURE AMMENDMENT: If I add local binding via let similar to Clojure, will be added here
+			idx++
+		}
 	//eventually refactor to handle other symbols like identifiers
 	//create a map with all of these operators pre-stored and just get, or default, passing in tokentype to check if it exists
-	case PLUS, MULTIPLY, DIVIDE, MINUS, DEFINE, STRING, SYMBOL, TRUE, FALSE, GEQUAL, LEQUAL, GTHAN, LTHAN, AND, OR, NOT, IF, PRINT, QUOTE:
+	case PLUS, MULTIPLY, DIVIDE, MINUS, STRING, TRUE, FALSE, GEQUAL, LEQUAL, GTHAN, LTHAN, AND, OR, NOT, IF, PRINT, QUOTE, DO, SYMBOL:
 		expr = SexpSymbol{ofType: tokens[idx].Token, value: tokens[idx].Literal}
 		idx++
 	default:

@@ -10,7 +10,7 @@ type LispyUserFunction func(env *Env, name string, args []Sexp) Sexp
 
 /******* handle definitions *********/
 //create new variable binding
-func definition(env *Env, key string, args []Sexp) Sexp {
+func varDefinition(env *Env, key string, args []Sexp) Sexp {
 	var value Sexp
 	for _, arg := range args {
 		value = arg
@@ -19,8 +19,8 @@ func definition(env *Env, key string, args []Sexp) Sexp {
 	return value
 }
 
-//retrieve existing binding
-func getBinding(env *Env, key string, args []Sexp) Sexp {
+//retrieve existing variable binding
+func getVarBinding(env *Env, key string, args []Sexp) Sexp {
 	if v, found := env.store[key]; found {
 		value, ok := v.(Sexp)
 		if !ok {
@@ -32,6 +32,29 @@ func getBinding(env *Env, key string, args []Sexp) Sexp {
 	return nil
 }
 
+//create new function binding
+func funcDefinition(env *Env, s *SexpFunctionLiteral) Sexp {
+	env.store[s.name] = FunctionValue{defn: s, parent: env}
+	//fix this
+	return SexpSymbol{ofType: STRING, value: (*s).name}
+}
+
+func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
+	node, isFuncLiteral := env.store[s.name].(FunctionValue)
+	if !isFuncLiteral {
+		log.Fatal("Error, badly defined function")
+	}
+	//set the passed in data to the arguments of the function
+	for i, arg := range node.defn.arguments.value {
+		env.store[arg.String()] = s.arguments.value[i]
+	}
+	return evalLispyFunction(env, node)
+}
+
+func evalLispyFunction(env *Env, fn FunctionValue) Sexp {
+	return env.evalNode(fn.defn.body)
+}
+
 /******* handle conditional statements *********/
 func conditionalStatement(env *Env, name string, args []Sexp) Sexp {
 	condition, okC := args[0].(SexpSymbol)
@@ -41,10 +64,10 @@ func conditionalStatement(env *Env, name string, args []Sexp) Sexp {
 	}
 	//TODO: adapt this for expressions or functions specifically? Not sure how do that
 	if condition.ofType == TRUE {
-		toReturn = args[1]
+		toReturn = env.evalNode(args[1])
 	} else {
 		if len(args) > 2 {
-			toReturn = args[2]
+			toReturn = env.evalNode(args[2])
 		} else {
 			//no provided else block despite the condition evaluating to such
 			toReturn = SexpSymbol{ofType: FALSE, value: "nil"}
@@ -156,19 +179,14 @@ func handleRelOperator(name string, x SexpInt, y SexpInt) bool {
 
 /******* handle binary arithmetic operations *********/
 func binaryOperation(env *Env, name string, args []Sexp) Sexp {
-	var res Sexp
-	if name == "+" || name == "-" {
-		res = SexpInt(0)
-	} else {
-		res = SexpInt(1)
-	}
-	for _, arg := range args {
+	res := args[0]
+	for i := 1; i < len(args); i++ {
 		//pass in new argument under consideration first for compare operation
-		switch term := arg.(type) {
+		switch term := res.(type) {
 		case SexpFloat:
-			res = numericMatchFloat(name, term, res)
+			res = numericMatchFloat(name, term, args[i])
 		case SexpInt:
-			res = numericMatchInt(name, term, res)
+			res = numericMatchInt(name, term, args[i])
 
 		}
 	}

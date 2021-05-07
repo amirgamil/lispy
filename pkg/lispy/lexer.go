@@ -8,17 +8,19 @@ import (
 type TokenType string
 
 const SYMBOL TokenType = "SYMBOL"
-const NUMBER TokenType = "NUMBER"
-const ATOM TokenType = "ATOM"
-const LIST TokenType = "LIST"
-const EXP TokenType = "EXP"
-const ENV TokenType = "ENV"
+
+//not used
+// const ATOM TokenType = "ATOM"
+// const EXP TokenType = "EXP"
+// const ENV TokenType = "ENV"
 const EOF TokenType = "EOF"
 
 //eventually refactor to hashmap?
 
 const LPAREN TokenType = "LPAREN"
 const RPAREN TokenType = "RPAREN"
+const LSQUARE TokenType = "LSQUARE"
+const RSQUARE TokenType = "RSQUARE"
 
 const INTEGER TokenType = "INTEGER"
 const FLOAT TokenType = "FLOAT"
@@ -35,7 +37,6 @@ const LEQUAL TokenType = "LEQUAL"
 const GTHAN TokenType = "GTHAN"
 const LTHAN TokenType = "LTHAN"
 
-//To implement
 const ID TokenType = "ID"
 const IF TokenType = "IF"
 const DEFINE TokenType = "DEFINE"
@@ -46,13 +47,9 @@ const AND TokenType = "AND"
 const OR TokenType = "OR"
 const NOT TokenType = "NOT"
 const QUOTE TokenType = "QUOTE"
-
-// symbols = map[string]TokenType{
-// 	"+":
-// }
-
-//some user defined token
-const IDEN TokenType = "IDEN"
+const DO TokenType = "DO"
+const LIST TokenType = "LIST"
+const ARRAY TokenType = "ARRAY"
 
 type Token struct {
 	Token   TokenType
@@ -120,7 +117,7 @@ func (l *Lexer) getInteger() Token {
 
 func (l *Lexer) getSymbol() Token {
 	old := l.Position
-	for !unicode.IsSpace(rune(l.peek())) && l.peek() != 0 && l.peek() != ')' {
+	for !unicode.IsSpace(rune(l.peek())) && l.peek() != 0 && l.peek() != ')' && l.peek() != ']' && l.peek() != '(' {
 		l.advance()
 	}
 	//use position because when l.Char is at a space, l.ReadPosition will be one ahead
@@ -143,6 +140,8 @@ func (l *Lexer) getSymbol() Token {
 		token = newToken(OR, "or")
 	case "not":
 		token = newToken(NOT, "not")
+	case "do":
+		token = newToken(DO, "do")
 	//will add others later
 	default:
 		token = newToken(SYMBOL, val)
@@ -172,6 +171,10 @@ func (l *Lexer) scanToken() Token {
 		token = newToken(LPAREN, "(")
 	case ')':
 		token = newToken(RPAREN, ")")
+	case '[':
+		token = newToken(LSQUARE, "[")
+	case ']':
+		token = newToken(RSQUARE, "]")
 	case '`':
 		l.advance()
 		token = l.getUntil(' ', QUOTE)

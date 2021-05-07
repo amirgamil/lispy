@@ -2,24 +2,54 @@ package lispy
 
 import (
 	"log"
+	"strings"
 )
 
-//not convenient to have binOps as separate but for now, this is what we'll work with
 type Env struct {
-	store map[string]interface{}
+	//pointer to the environment with globals
+	global *Env
+	store  map[string]Value
+}
+
+//Value is a reference to any Value in a Lispy program
+type Value interface {
+	String() string
+}
+
+//Value referencing any functions
+type FunctionValue struct {
+	defn *SexpFunctionLiteral
+	//fix this bit
+	parent *Env
+}
+
+//allow functionvalue to implement value
+func (env Env) String() string {
+	data := make([]string, 0)
+	for _, val := range env.store {
+		data = append(data, val.String())
+	}
+	return strings.Join(data, " ")
+}
+
+func (f FunctionValue) String() string {
+	//TODO: clean this up later
+	return f.defn.String()
 }
 
 func InitState() *Env {
 	//add more ops as need for function bodies, assignments etc
 	env := new(Env)
-	env.store = make(map[string]interface{})
+	env.store = make(map[string]Value)
+	//this is the global reference, so set the pointer to nil
+	env.global = nil
 	return env
 }
 
 func (env *Env) evalSymbol(s SexpSymbol, args []Sexp) Sexp {
 	switch s.ofType {
 	case SYMBOL:
-		return getBinding(env, s.value, args)
+		return getVarBinding(env, s.value, args)
 	case PLUS, MINUS, MULTIPLY, DIVIDE:
 		return binaryOperation(env, s.value, args)
 	case GEQUAL, LEQUAL, GTHAN, LTHAN:
@@ -33,71 +63,84 @@ func (env *Env) evalSymbol(s SexpSymbol, args []Sexp) Sexp {
 	case IF:
 		return conditionalStatement(env, s.value, args)
 	case DEFINE:
-		return definition(env, args[0].String(), args[1:])
+		return varDefinition(env, args[0].String(), args[1:])
 	case PRINT:
 		return printlnStatement(env, s.String(), args)
 	}
-	//TODO: fix this bit
-	return SexpSymbol{} //env.getBinding(s.value)
+	return nil
 }
 
-func (env *Env) evalNumber(n SexpInt) int {
-	return int(n)
+func (env *Env) evalFunctionLiteral(s *SexpFunctionLiteral) Sexp {
+	return funcDefinition(env, s)
 }
 
-func (env *Env) evalList(n List) Sexp {
+func (env *Env) evalFunctionCall(s *SexpFunctionCall) Sexp {
+	return getFuncBinding(env, s)
+}
+
+func (env *Env) evalList(n SexpList) Sexp {
 	var toReturn Sexp
 	//empty string
-	if len(n) == 0 {
-		return List{}
+	if len(n.value) == 0 {
+		return SexpList{}
 	}
 
-	switch n[0].(type) {
+	switch n.value[0].(type) {
 	case SexpSymbol:
-		symbol, ok := n[0].(SexpSymbol)
+		symbol, ok := n.value[0].(SexpSymbol)
 		if !ok {
 			log.Fatal("error trying to interpret symbol")
 		}
 		arguments := make([]Sexp, 0)
 		switch symbol.ofType {
 		case DEFINE:
-			toReturn = env.evalSymbol(symbol, []Sexp{n[1], n[2]})
+			//binding to a variable
+			toReturn = env.evalSymbol(symbol, []Sexp{n.value[1], n.value[2]})
 		case PRINT:
-			if len(n) <= 1 {
+			if len(n.value) <= 1 {
 				log.Fatal("Error trying to print nothing!")
 			}
-			toReturn = env.evalSymbol(symbol, n[1:])
+			toReturn = env.evalSymbol(symbol, n.value[1:])
 		case IF:
-			if len(n) < 3 {
+			if len(n.value) < 3 {
 				log.Fatal("Syntax error, too few arguments to if")
 			}
 			//condition for the if statement will be a list
-			condition, ok := n[1].(List)
+			condition, ok := n.value[1].(SexpList)
 			if !ok {
 				log.Fatal("Error - please provide a valid condition for the if statement")
 			}
 			arguments = append(arguments, env.evalList(condition))
-			arguments = append(arguments, env.evalNode(n[2]))
-			if len(n) == 4 {
-				arguments = append(arguments, env.evalNode(n[3]))
+			//note we don't want to evaluate the nodes before we check the result of that condition - delegate that to later
+			arguments = append(arguments, n.value[2])
+			if len(n.value) == 4 {
+				arguments = append(arguments, n.value[3])
 			}
 			toReturn = env.evalSymbol(symbol, arguments)
+		case DO:
+			//if symbol is do, we just evaluate the nodes and return the (result of the) last node
+			for i := 1; i < len(n.value); i++ {
+				toReturn = env.evalNode(n.value[i])
+			}
 		case PLUS, MINUS, MULTIPLY, DIVIDE, GEQUAL, LEQUAL, GTHAN, LTHAN, AND, OR, NOT:
 			//loop through elements in the list and carry out operation, will need to be adapted as we add more functionality
-			for i := 1; i < len(n); i++ {
-				arguments = append(arguments, env.evalNode(n[i]))
+			for i := 1; i < len(n.value); i++ {
+				arguments = append(arguments, env.evalNode(n.value[i]))
 			}
 			toReturn = env.evalSymbol(symbol, arguments)
 		default:
 			toReturn = env.evalSymbol(symbol, []Sexp{})
 		}
+	case SexpFunctionCall, SexpFunctionLiteral:
+		toReturn = env.evalNode(n.value[0])
 	//if it's just a list without a symbol at the front, treat it as data and return it
-	case List:
-		original, ok := n[0].(List)
+	case SexpList:
+		original, ok := n.value[0].(SexpList)
 		if ok {
 			toReturn = env.evalList(original)
+		} else {
+			log.Fatal("error interpreting nested list")
 		}
-		log.Fatal("error interpreting nested list")
 	default:
 		toReturn = n
 	}
@@ -108,9 +151,9 @@ func (env *Env) evalList(n List) Sexp {
 func (env *Env) evalNode(node Sexp) Sexp {
 	var toReturn Sexp
 	switch node.(type) {
-	case List:
+	case SexpList:
 		//Assert type since ast is composed of generic Sexp interface
-		original, ok := node.(List)
+		original, ok := node.(SexpList)
 		if ok {
 			toReturn = env.evalList(original)
 		}
@@ -120,6 +163,20 @@ func (env *Env) evalNode(node Sexp) Sexp {
 		original, ok := node.(SexpSymbol)
 		if ok {
 			toReturn = env.evalSymbol(original, []Sexp{})
+		}
+	case SexpFunctionLiteral:
+		original, ok := node.(SexpFunctionLiteral)
+		if ok {
+			toReturn = env.evalFunctionLiteral(&original)
+		} else {
+			log.Fatal("Error evaluating function literal!")
+		}
+	case SexpFunctionCall:
+		original, ok := node.(SexpFunctionCall)
+		if ok {
+			toReturn = env.evalFunctionCall(&original)
+		} else {
+			log.Fatal("Error evaluating function call")
 		}
 	default:
 		//TODO: fix this later
