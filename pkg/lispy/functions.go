@@ -80,7 +80,9 @@ func conditionalStatement(env *Env, name string, args []Sexp) Sexp {
 /******* handle println statements *********/
 func printlnStatement(env *Env, name string, args []Sexp) Sexp {
 	for _, arg := range args {
-		return env.evalNode(arg)
+		res := env.evalNode(arg)
+		// fmt.Println(res.String())
+		return res
 	}
 	return SexpSymbol{}
 }

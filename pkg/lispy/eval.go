@@ -1,6 +1,7 @@
 package lispy
 
 import (
+	"fmt"
 	"log"
 	"strings"
 )
@@ -56,9 +57,7 @@ func (env *Env) evalSymbol(s SexpSymbol, args []Sexp) Sexp {
 		return relationalOperator(env, s.value, args)
 	case AND, OR, NOT:
 		return logicalOperator(env, s.value, args)
-	case TRUE, FALSE:
-		return s
-	case QUOTE:
+	case TRUE, FALSE, QUOTE, STRING:
 		return s
 	case IF:
 		return conditionalStatement(env, s.value, args)
@@ -126,8 +125,13 @@ func (env *Env) evalList(n SexpList) Sexp {
 			toReturn = env.evalSymbol(symbol, arguments)
 		case DO:
 			//if symbol is do, we just evaluate the nodes and return the (result of the) last node
-			for i := 1; i < len(n.value); i++ {
-				toReturn = env.evalNode(n.value[i])
+			//note do's second element will be a list of lists so we need to unwrap it
+			doList, isDoList := n.value[1].(SexpList)
+			if !isDoList {
+				fmt.Println("Error parsing body of do statement")
+			}
+			for i := 1; i < len(doList.value); i++ {
+				toReturn = env.evalNode(doList.value[i])
 			}
 		case PLUS, MINUS, MULTIPLY, DIVIDE, GEQUAL, LEQUAL, GTHAN, LTHAN, AND, OR, NOT, EQUAL:
 			//loop through elements in the list and carry out operation, will need to be adapted as we add more functionality
@@ -142,7 +146,6 @@ func (env *Env) evalList(n SexpList) Sexp {
 		toReturn = env.evalNode(n.value[0])
 	case SexpInt, SexpFloat:
 		toReturn = n.value[0]
-	//if it's just a list without a symbol at the front, treat it as data and return it
 	case SexpList:
 		original, ok := n.value[0].(SexpList)
 		if ok {
@@ -150,6 +153,7 @@ func (env *Env) evalList(n SexpList) Sexp {
 		} else {
 			log.Fatal("error interpreting nested list")
 		}
+	//if it's just a list without a symbol at the front, treat it as data and return it
 	default:
 		toReturn = n
 	}

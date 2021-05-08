@@ -1,1 +1,29 @@
 ; where more powerful package stuff will be 
+
+;factorial
+(define fact [n] 
+    (if (= n 0) 
+        1
+        (* n (fact (- n 1)))
+    )
+)
+
+;figure out why >21 causes problems
+(fact 25)
+
+(define oldEnough [age]
+    (if (> age 21)
+        (println "cool")
+        (println "not cool")
+    )
+)
+
+(oldEnough 22)
+(oldEnough 18)
+
+
+(define str [a b]
+        `a `b
+)
+
+(str "hello" " how are you")

@@ -88,6 +88,6 @@ func main() {
 			log.Fatal("Error opening file to read!")
 		}
 		env := lispy.InitState()
-		eval(read(file), env)
+		repl(file, env)
 	}
 }

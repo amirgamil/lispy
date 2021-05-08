@@ -84,7 +84,6 @@ func (f SexpFunctionLiteral) String() string {
 		strings.Join(args, ", "))
 }
 
-//Is this supposed to be identical?
 type SexpFunctionCall struct {
 	//for now keep arguments as string, in future potentially refacto wrap in SexpIdentifierNode
 	name      string
@@ -101,6 +100,7 @@ func (f SexpFunctionCall) String() string {
 		strings.Join(args, ", "))
 }
 
+/********** PARSING CODE ****************/
 func Parse(tokens []Token) ([]Sexp, error) {
 	idx, length := 0, len(tokens)
 	nodes := make([]Sexp, 0)
@@ -164,15 +164,16 @@ func parseFunctionLiteral(tokens []Token) (Sexp, int, error) {
 	}
 	idx += add
 	//parse body of the function which which will be an Sexpr
-	body, addBlock, err := parseList(tokens[idx:])
+	body, addBlock, err := parseExpr(tokens[idx:])
 	if err != nil {
 		return nil, 0, err
 	}
 	idx += addBlock
-	//entire function include define was enclosed in () so skip 1 to get past )
-	return SexpFunctionLiteral{name: name, arguments: args, body: body}, idx + 1, nil
+	//entire function include define was enclosed in (), note DON'T SKIP 1 otherwise may read code outside function
+	return SexpFunctionLiteral{name: name, arguments: args, body: body}, idx, nil
 }
 
+//parses a function call
 func parseFunctionCall(tokens []Token) (Sexp, int, error) {
 	idx := 0
 	name := tokens[0].Literal
@@ -190,6 +191,7 @@ func parseFunctionCall(tokens []Token) (Sexp, int, error) {
 	return SexpFunctionCall{name: name, arguments: origArgs}, idx, nil
 }
 
+//parses a single expression (list or non-list)
 func parseExpr(tokens []Token) (Sexp, int, error) {
 	idx := 0
 	var expr Sexp
@@ -224,8 +226,6 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 		if err != nil {
 			return nil, 0, err
 		}
-
-	//not DRY, very similar to LPAREN but keep since handling function may change (wait until confirmed)
 	case INTEGER:
 		i, err := strconv.Atoi(tokens[idx].Literal)
 		if err != nil {
