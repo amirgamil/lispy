@@ -1,14 +1,8 @@
 
 
 (define testOutter [o]
-    (do (
-            (println "hello outter")
-            (println "smt")
-            (define testInner [a] 
-                (println "hello inner")
-            )
-        )
-    )
+    (println "hello outter")
+    (println "sir")
 )
 
 (testOutter "cheeky")

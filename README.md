@@ -31,3 +31,5 @@ To run Lispy, you have two options.
 1. You can launch a repl by running `make` in the outer directory
 2. If you want to run a specific file, you can run `./run <path/to/file>`. For context, run is an executable with a small
 script to run a passed in file. Note don't include the `<>` when passing a path (I included it for clarity).
+
+There is no distinction between statements and expressions -> everything is an expression! A function declaration will return the name of the functiion. A function will return the last expression of the body.

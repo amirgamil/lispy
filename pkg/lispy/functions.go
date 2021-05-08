@@ -1,6 +1,7 @@
 package lispy
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 )
@@ -36,7 +37,7 @@ func funcDefinition(env *Env, s *SexpFunctionLiteral) Sexp {
 	//FunctionValue is a compile-time representation of a function
 	env.store[s.name] = FunctionValue{defn: s, parent: env}
 	//fix this
-	return SexpSymbol{ofType: STRING, value: (*s).name}
+	return SexpSymbol{ofType: STRING, value: "#user/" + s.name}
 }
 
 func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
@@ -81,10 +82,11 @@ func conditionalStatement(env *Env, name string, args []Sexp) Sexp {
 func printlnStatement(env *Env, name string, args []Sexp) Sexp {
 	for _, arg := range args {
 		res := env.evalNode(arg)
-		// fmt.Println(res.String())
-		return res
+		fmt.Println(res.String())
+		//return nil since println by def'n doesn't return anything
+		return SexpSymbol{ofType: FALSE, value: "nil"}
 	}
-	return SexpSymbol{}
+	return nil
 }
 
 /******* handle logical (and or not) operations *********/

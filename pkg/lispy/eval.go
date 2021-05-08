@@ -130,7 +130,7 @@ func (env *Env) evalList(n SexpList) Sexp {
 			if !isDoList {
 				fmt.Println("Error parsing body of do statement")
 			}
-			for i := 1; i < len(doList.value); i++ {
+			for i := 0; i < len(doList.value); i++ {
 				toReturn = env.evalNode(doList.value[i])
 			}
 		case PLUS, MINUS, MULTIPLY, DIVIDE, GEQUAL, LEQUAL, GTHAN, LTHAN, AND, OR, NOT, EQUAL:
@@ -144,6 +144,11 @@ func (env *Env) evalList(n SexpList) Sexp {
 		}
 	case SexpFunctionCall, SexpFunctionLiteral:
 		toReturn = env.evalNode(n.value[0])
+		//in a function literal, body should only be on Sexp, if there is more, throw an error
+		//in a function call, arguments will be pased into SexpFunctionCall so similar idea
+		if len(n.value) > 1 {
+			log.Fatal("Error interpreting function declaration or literal - ensure only one Sexp in body of function literal!")
+		}
 	case SexpInt, SexpFloat:
 		toReturn = n.value[0]
 	case SexpList:
@@ -202,7 +207,10 @@ func (env *Env) evalNode(node Sexp) Sexp {
 func Eval(nodes []Sexp, env *Env) []string {
 	res := make([]string, 0)
 	for _, node := range nodes {
-		res = append(res, env.evalNode(node).String())
+		curr := env.evalNode(node)
+		if curr != nil {
+			res = append(res, curr.String())
+		}
 	}
 	return res
 }
