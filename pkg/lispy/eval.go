@@ -52,7 +52,7 @@ func (env *Env) evalSymbol(s SexpSymbol, args []Sexp) Sexp {
 		return getVarBinding(env, s.value, args)
 	case PLUS, MINUS, MULTIPLY, DIVIDE:
 		return binaryOperation(env, s.value, args)
-	case GEQUAL, LEQUAL, GTHAN, LTHAN:
+	case EQUAL, GEQUAL, LEQUAL, GTHAN, LTHAN:
 		return relationalOperator(env, s.value, args)
 	case AND, OR, NOT:
 		return logicalOperator(env, s.value, args)
@@ -75,7 +75,14 @@ func (env *Env) evalFunctionLiteral(s *SexpFunctionLiteral) Sexp {
 }
 
 func (env *Env) evalFunctionCall(s *SexpFunctionCall) Sexp {
-	return getFuncBinding(env, s)
+	//each call should get its own environment for recursion to work
+	functionCallEnv := new(Env)
+	functionCallEnv.store = make(map[string]Value)
+	//copy globals
+	for key, element := range env.store {
+		functionCallEnv.store[key] = element
+	}
+	return getFuncBinding(functionCallEnv, s)
 }
 
 func (env *Env) evalList(n SexpList) Sexp {
@@ -122,7 +129,7 @@ func (env *Env) evalList(n SexpList) Sexp {
 			for i := 1; i < len(n.value); i++ {
 				toReturn = env.evalNode(n.value[i])
 			}
-		case PLUS, MINUS, MULTIPLY, DIVIDE, GEQUAL, LEQUAL, GTHAN, LTHAN, AND, OR, NOT:
+		case PLUS, MINUS, MULTIPLY, DIVIDE, GEQUAL, LEQUAL, GTHAN, LTHAN, AND, OR, NOT, EQUAL:
 			//loop through elements in the list and carry out operation, will need to be adapted as we add more functionality
 			for i := 1; i < len(n.value); i++ {
 				arguments = append(arguments, env.evalNode(n.value[i]))
@@ -133,6 +140,8 @@ func (env *Env) evalList(n SexpList) Sexp {
 		}
 	case SexpFunctionCall, SexpFunctionLiteral:
 		toReturn = env.evalNode(n.value[0])
+	case SexpInt, SexpFloat:
+		toReturn = n.value[0]
 	//if it's just a list without a symbol at the front, treat it as data and return it
 	case SexpList:
 		original, ok := n.value[0].(SexpList)

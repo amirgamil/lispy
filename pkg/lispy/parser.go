@@ -89,7 +89,6 @@ type SexpFunctionCall struct {
 	//for now keep arguments as string, in future potentially refacto wrap in SexpIdentifierNode
 	name      string
 	arguments SexpList
-	body      Sexp
 }
 
 func (f SexpFunctionCall) String() string {
@@ -97,8 +96,8 @@ func (f SexpFunctionCall) String() string {
 	for _, node := range f.arguments.value {
 		args = append(args, node.String())
 	}
-	return fmt.Sprintf("Define (%s) on (%s)",
-		f.body,
+	return fmt.Sprintf("Function call (%s) on (%s)",
+		f.name,
 		strings.Join(args, ", "))
 }
 
@@ -188,7 +187,7 @@ func parseFunctionCall(tokens []Token) (Sexp, int, error) {
 		return nil, 0, err
 	}
 	idx += add
-	return SexpFunctionCall{name: name, arguments: origArgs, body: nil}, idx, nil
+	return SexpFunctionCall{name: name, arguments: origArgs}, idx, nil
 }
 
 func parseExpr(tokens []Token) (Sexp, int, error) {
@@ -198,10 +197,25 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 	var add int
 
 	switch tokens[idx].Token {
+	case DEFINE:
+		//look ahead one to check if it's a function or just data-binding
+		if idx+2 < len(tokens) && tokens[idx+2].Token == LSQUARE {
+			//skip define token
+			idx++
+			expr, add, err = parseFunctionLiteral(tokens[idx:])
+			if err != nil {
+				return nil, 0, err
+			}
+			idx += add
+		} else {
+			expr = SexpSymbol{ofType: tokens[idx].Token, value: tokens[idx].Literal}
+			//POSSIBLE FEATURE AMMENDMENT: If I add local binding via let similar to Clojure, will be added here
+			idx++
+		}
 	case LPAREN:
 		idx++
 		//check if this is a function call i.e. the next token is a symbol
-		if idx < len(tokens) && tokens[idx].Token == SYMBOL {
+		if idx < len(tokens) && tokens[idx].Token == SYMBOL && tokens[idx].Literal != "define" {
 			expr, add, err = parseFunctionCall(tokens[idx:])
 		} else {
 			expr, add, err = parseList(tokens[idx:])
@@ -226,24 +240,9 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 		}
 		expr = SexpFloat(i)
 		idx++
-	case DEFINE:
-		//look ahead one to check if it's a function or just data-binding
-		if idx+2 < len(tokens) && tokens[idx+2].Token == LSQUARE {
-			//skip define token
-			idx++
-			expr, add, err = parseFunctionLiteral(tokens[idx:])
-			if err != nil {
-				return nil, 0, err
-			}
-			idx += add
-		} else {
-			expr = SexpSymbol{ofType: tokens[idx].Token, value: tokens[idx].Literal}
-			//POSSIBLE FEATURE AMMENDMENT: If I add local binding via let similar to Clojure, will be added here
-			idx++
-		}
 	//eventually refactor to handle other symbols like identifiers
 	//create a map with all of these operators pre-stored and just get, or default, passing in tokentype to check if it exists
-	case PLUS, MULTIPLY, DIVIDE, MINUS, STRING, TRUE, FALSE, GEQUAL, LEQUAL, GTHAN, LTHAN, AND, OR, NOT, IF, PRINT, QUOTE, DO, SYMBOL:
+	case PLUS, MULTIPLY, DIVIDE, MINUS, STRING, TRUE, FALSE, GEQUAL, LEQUAL, GTHAN, LTHAN, EQUAL, AND, OR, NOT, IF, PRINT, QUOTE, DO, SYMBOL:
 		expr = SexpSymbol{ofType: tokens[idx].Token, value: tokens[idx].Literal}
 		idx++
 	default:

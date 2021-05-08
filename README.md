@@ -23,3 +23,11 @@ Spec
 
 - Lists (in particular) and arrays are implemented as array under the hood for simplicity (as opposed to a List being implemented as a linked
 list of cons cells in most Lisp dialects)
+
+
+
+### Running Lispy
+To run Lispy, you have two options.
+1. You can launch a repl by running `make` in the outer directory
+2. If you want to run a specific file, you can run `./run <path/to/file>`. For context, run is an executable with a small
+script to run a passed in file. Note don't include the `<>` when passing a path (I included it for clarity).

@@ -1,6 +1,9 @@
 package lispy
 
 import (
+	"io"
+	"io/ioutil"
+	"log"
 	"unicode"
 )
 
@@ -36,6 +39,7 @@ const GEQUAL TokenType = "GEQUAL"
 const LEQUAL TokenType = "LEQUAL"
 const GTHAN TokenType = "GTHAN"
 const LTHAN TokenType = "LTHAN"
+const COMMENT TokenType = "COMMENT"
 
 const ID TokenType = "ID"
 const IF TokenType = "IF"
@@ -89,9 +93,10 @@ func (l *Lexer) peek() byte {
 }
 
 func (l *Lexer) skipWhiteSpace() {
-	for unicode.IsSpace(rune(l.Char)) {
+	for unicode.IsSpace(rune(l.Char)) || l.Char == '\n' {
 		l.advance()
 	}
+
 }
 
 func (l *Lexer) getFloat(start int) Token {
@@ -164,6 +169,7 @@ func (l *Lexer) getUntil(until byte, token TokenType) Token {
 }
 
 func (l *Lexer) scanToken() Token {
+	//skips white space and new lines
 	l.skipWhiteSpace()
 	var token Token
 	switch l.Char {
@@ -178,6 +184,9 @@ func (l *Lexer) scanToken() Token {
 	case '`':
 		l.advance()
 		token = l.getUntil(' ', QUOTE)
+	case ';':
+		token = newToken(FALSE, "nil")
+		l.getUntil('\n', COMMENT)
 	case '"':
 		//skip the first "
 		l.advance()
@@ -193,6 +202,8 @@ func (l *Lexer) scanToken() Token {
 		token = newToken(DIVIDE, "/")
 	case '*':
 		token = newToken(MULTIPLY, "*")
+	case '=':
+		token = newToken(EQUAL, "=")
 	case '>':
 		if l.peek() == '=' {
 			token = newToken(GTHAN, ">")
@@ -227,13 +238,23 @@ func (l *Lexer) tokenize(source string) []Token {
 		next := l.scanToken()
 		tokens = append(tokens, next)
 	}
-	tokens = append(tokens, Token{Token: EOF, Literal: "EOF"})
 	return tokens
 }
 
 //Takes as input the source code as a string and returns a list of tokens
-func Read(source string) []Token {
+func Read(reader io.Reader) []Token {
+	source := loadReader(reader)
 	l := New(source)
 	tokens := l.tokenize(source)
 	return tokens
+}
+
+func loadReader(reader io.Reader) string {
+	//todo: ReadAll puts everything in memory, very inefficient for large files
+	//files will remain small for lispy but potentially adapt to buffered approach (reads in buffers)
+	ltxtb, err := ioutil.ReadAll(reader)
+	if err != nil {
+		log.Fatal("Error trying to read source file: ", err)
+	}
+	return string(ltxtb)
 }

@@ -1,0 +1,11 @@
+;(define fact [n] (if (= n 0) (1) (* n (fact (- n 1)))))
+
+(define count [n] (
+    (do 
+        (if (> n 1) (count (- n 1)))
+        (println n)
+    )
+)
+     
+(println 5)
+(count 4)

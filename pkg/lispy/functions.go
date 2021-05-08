@@ -1,7 +1,6 @@
 package lispy
 
 import (
-	"fmt"
 	"log"
 	"strconv"
 )
@@ -34,6 +33,7 @@ func getVarBinding(env *Env, key string, args []Sexp) Sexp {
 
 //create new function binding
 func funcDefinition(env *Env, s *SexpFunctionLiteral) Sexp {
+	//FunctionValue is a compile-time representation of a function
 	env.store[s.name] = FunctionValue{defn: s, parent: env}
 	//fix this
 	return SexpSymbol{ofType: STRING, value: (*s).name}
@@ -44,13 +44,14 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 	if !isFuncLiteral {
 		log.Fatal("Error, badly defined function")
 	}
-	//set the passed in data to the arguments of the function
+	//load the passed in data to the arguments of the function in the environment
 	for i, arg := range node.defn.arguments.value {
-		env.store[arg.String()] = s.arguments.value[i]
+		env.store[arg.String()] = env.evalNode(s.arguments.value[i])
 	}
 	return evalLispyFunction(env, node)
 }
 
+//evaluate a previously-user defined function
 func evalLispyFunction(env *Env, fn FunctionValue) Sexp {
 	return env.evalNode(fn.defn.body)
 }
@@ -79,8 +80,7 @@ func conditionalStatement(env *Env, name string, args []Sexp) Sexp {
 /******* handle println statements *********/
 func printlnStatement(env *Env, name string, args []Sexp) Sexp {
 	for _, arg := range args {
-		fmt.Println(arg)
-		fmt.Println(arg.String())
+		return env.evalNode(arg)
 	}
 	return SexpSymbol{}
 }
@@ -145,7 +145,6 @@ func relationalOperator(env *Env, name string, args []Sexp) Sexp {
 	result := true
 	tokenType := TRUE
 	initial, ok := args[0].(SexpInt)
-
 	if !ok {
 		log.Fatal("Error, must provide only a  SexpInt with a relational operator")
 	}
@@ -173,6 +172,8 @@ func handleRelOperator(name string, x SexpInt, y SexpInt) bool {
 		result = x < y
 	case "<=":
 		result = x < y
+	case "=":
+		result = x == y
 	}
 	return result
 }
@@ -227,11 +228,10 @@ func numericOpInt(name string, x SexpInt, y SexpInt) Sexp {
 	case "-":
 		res = x - y
 	case "/":
-		if x%y == 0 {
-			res = x / y
-		} else {
-			res = SexpFloat(x) / SexpFloat(y)
+		if y == 0 {
+			log.Fatal("Error attempted division by 0")
 		}
+		res = x / y
 	case "*":
 		res = x * y
 	default:
@@ -249,6 +249,9 @@ func numericOpFloat(name string, x SexpFloat, y SexpFloat) Sexp {
 	case "-":
 		res = x - y
 	case "/":
+		if y == 0 {
+			log.Fatal("Error attempted division by 0")
+		}
 		res = x / y
 	case "*":
 		res = x * y
