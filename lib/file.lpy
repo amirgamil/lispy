@@ -1,8 +1,1 @@
-
-
-(define testOutter [o]
-    (println "hello outter")
-    (println "sir")
-)
-
-(testOutter "cheeky")
+(println "hello")

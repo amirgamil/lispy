@@ -1,7 +1,6 @@
 package lispy
 
 import (
-	"fmt"
 	"log"
 	"strconv"
 )
@@ -45,9 +44,19 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 	if !isFuncLiteral {
 		log.Fatal("Error, badly defined function")
 	}
+	//check we have the correct number of parameters
+	if len(node.defn.arguments.value) > len(s.arguments.value) {
+		log.Fatal("Incorrect number of arguments passed in!")
+	}
+	//note quite critically, we need to evaluate the result of any expression arguments BEFORE we set them
+	//(before any old values get overwritten)
+	newExprs := make([]Sexp, 0)
+	for _, toEvaluate := range s.arguments.value {
+		newExprs = append(newExprs, env.evalNode(toEvaluate))
+	}
 	//load the passed in data to the arguments of the function in the environment
 	for i, arg := range node.defn.arguments.value {
-		env.store[arg.String()] = env.evalNode(s.arguments.value[i])
+		env.store[arg.String()] = newExprs[i]
 	}
 	return evalLispyFunction(env, node)
 }
@@ -82,9 +91,8 @@ func conditionalStatement(env *Env, name string, args []Sexp) Sexp {
 func printlnStatement(env *Env, name string, args []Sexp) Sexp {
 	for _, arg := range args {
 		res := env.evalNode(arg)
-		fmt.Println(res.String())
-		//return nil since println by def'n doesn't return anything
-		return SexpSymbol{ofType: FALSE, value: "nil"}
+		// fmt.Println(res.String())
+		return res
 	}
 	return nil
 }
@@ -101,14 +109,14 @@ func logicalOperator(env *Env, name string, args []Sexp) Sexp {
 		if len(args) > 1 {
 			log.Fatal("Error, cannot pass more than one logical operator to not!")
 		}
-		result = handleLogicalOp(name, getBoolFromTokenType(args[0]))
+		result = handleLogicalOp(name, getBoolFromTokenType(env.evalNode(args[0])))
 	} else {
 		if len(args) < 2 {
 			log.Fatal("Error, cannot carry out an ", name, " operator with only 1 condition!")
 		}
 		//for and, or, loop through the arguments and aggregate
 		for _, arg := range args {
-			result = handleLogicalOp(name, result, getBoolFromTokenType(arg))
+			result = handleLogicalOp(name, result, getBoolFromTokenType(env.evalNode(arg)))
 			if result == false {
 				//note we can't break early beacuse of the or operator
 				tokenType = FALSE
@@ -121,14 +129,15 @@ func logicalOperator(env *Env, name string, args []Sexp) Sexp {
 
 //helper code to keep code DRY
 func getBoolFromTokenType(symbol Sexp) bool {
-	value, ok := symbol.(SexpSymbol)
-	if !ok {
-		log.Fatal("Error, invalid input to logical operation!")
-	}
-	if value.ofType != FALSE {
+	switch i := symbol.(type) {
+	case SexpSymbol:
+		if i.ofType == FALSE {
+			return false
+		}
+		return true
+	default:
 		return true
 	}
-	return false
 }
 
 func handleLogicalOp(name string, log ...bool) bool {
@@ -148,24 +157,66 @@ func handleLogicalOp(name string, log ...bool) bool {
 func relationalOperator(env *Env, name string, args []Sexp) Sexp {
 	result := true
 	tokenType := TRUE
-	initial, ok := args[0].(SexpInt)
-	if !ok {
-		log.Fatal("Error, must provide only a  SexpInt with a relational operator")
-	}
+	orig := env.evalNode(args[0])
+
 	for i := 1; i < len(args); i++ {
-		curr, ok := args[i].(SexpInt)
-		if !ok {
+		curr := env.evalNode(args[i])
+		switch i := orig.(type) {
+		case SexpFloat:
+			result = relationalOperatorMatchFloat(name, i, curr)
+		case SexpInt:
+			result = relationalOperatorMatchInt(name, i, curr)
+		default:
 			log.Fatal("Error, must provide only a SexpInter with a relational operator")
 		}
-		result := handleRelOperator(name, initial, curr)
 		if result == false {
 			tokenType = FALSE
+			break
 		}
 	}
-	return SexpSymbol{ofType: tokenType, value: strconv.FormatBool(result)}
+	return SexpSymbol{ofType: tokenType, value: getBoolFromString(result)}
 }
 
-func handleRelOperator(name string, x SexpInt, y SexpInt) bool {
+func relationalOperatorMatchFloat(name string, x SexpFloat, y Sexp) bool {
+	var res bool
+	switch i := y.(type) {
+	case SexpFloat:
+		res = handleRelOperator(name, x, i)
+	case SexpInt:
+		res = handleRelOperator(name, x, SexpFloat(i))
+	default:
+		log.Fatal("Invalid expression for relational operator!")
+	}
+	return res
+}
+
+func relationalOperatorMatchInt(name string, x SexpInt, y Sexp) bool {
+	var res bool
+	switch i := y.(type) {
+	case SexpFloat:
+		res = handleRelOperator(name, SexpFloat(x), i)
+	case SexpInt:
+		res = handleRelOperator(name, SexpFloat(x), SexpFloat(i))
+	default:
+		log.Fatal("Invalid expression for relational operator!")
+	}
+	return res
+}
+
+func getBoolFromString(boolean bool) string {
+	var res string
+	switch boolean {
+	case true:
+		res = "true"
+	case false:
+		res = "false"
+	default:
+		log.Fatal("Error with passed in bool")
+	}
+	return res
+}
+
+func handleRelOperator(name string, x SexpFloat, y SexpFloat) bool {
 	var result bool
 	switch name {
 	case ">":

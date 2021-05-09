@@ -1,7 +1,6 @@
 package lispy
 
 import (
-	"fmt"
 	"log"
 	"strings"
 )
@@ -27,8 +26,8 @@ type FunctionValue struct {
 //allow functionvalue to implement value
 func (env Env) String() string {
 	data := make([]string, 0)
-	for _, val := range env.store {
-		data = append(data, val.String())
+	for key, val := range env.store {
+		data = append(data, key+":"+val.String())
 	}
 	return strings.Join(data, " ")
 }
@@ -128,7 +127,7 @@ func (env *Env) evalList(n SexpList) Sexp {
 			//note do's second element will be a list of lists so we need to unwrap it
 			doList, isDoList := n.value[1].(SexpList)
 			if !isDoList {
-				fmt.Println("Error parsing body of do statement")
+				log.Fatal("Error parsing body of do statement")
 			}
 			for i := 0; i < len(doList.value); i++ {
 				toReturn = env.evalNode(doList.value[i])

@@ -246,6 +246,7 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 		expr = SexpSymbol{ofType: tokens[idx].Token, value: tokens[idx].Literal}
 		idx++
 	default:
+		fmt.Println(tokens[idx])
 		log.Fatal("error parsing")
 	}
 	return expr, idx, nil

@@ -159,10 +159,13 @@ func newToken(token TokenType, literal string) Token {
 }
 
 //function to get entire string or symbol token
-func (l *Lexer) getUntil(until byte, token TokenType) Token {
+func (l *Lexer) getUntil(until byte, token TokenType, after bool) Token {
 	old := l.Position
 	//get until assumes we eat the last token, which is why we don't use peek
 	for l.Char != until && l.Char != 0 {
+		l.advance()
+	}
+	if after {
 		l.advance()
 	}
 	return newToken(token, l.Input[old:l.Position])
@@ -183,14 +186,18 @@ func (l *Lexer) scanToken() Token {
 		token = newToken(RSQUARE, "]")
 	case '`':
 		l.advance()
-		token = l.getUntil(' ', QUOTE)
+		if l.Char == '(' {
+			token = l.getUntil(')', QUOTE, true)
+		} else {
+			token = l.getUntil(' ', QUOTE, false)
+		}
 	case ';':
 		token = newToken(FALSE, "nil")
-		l.getUntil('\n', COMMENT)
+		l.getUntil('\n', COMMENT, true)
 	case '"':
 		//skip the first "
 		l.advance()
-		token = l.getUntil('"', STRING)
+		token = l.getUntil('"', STRING, false)
 		//skip final quote
 	case '+':
 		token = newToken(PLUS, "+")
@@ -206,13 +213,17 @@ func (l *Lexer) scanToken() Token {
 		token = newToken(EQUAL, "=")
 	case '>':
 		if l.peek() == '=' {
-			token = newToken(GTHAN, ">")
+			token = newToken(GTHAN, ">=")
+			//skip equal
+			l.advance()
 		} else {
-			token = newToken(GEQUAL, ">=")
+			token = newToken(GEQUAL, ">")
 		}
 	case '<':
 		if l.peek() == '=' {
 			token = newToken(LTHAN, "<=")
+			//skip equal
+			l.advance()
 		} else {
 			token = newToken(LEQUAL, "<")
 		}
