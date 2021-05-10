@@ -19,8 +19,6 @@ type Value interface {
 //Value referencing any functions
 type FunctionValue struct {
 	defn *SexpFunctionLiteral
-	//fix this bit
-	parent *Env
 }
 
 //allow functionvalue to implement value
@@ -125,12 +123,8 @@ func (env *Env) evalList(n SexpList) Sexp {
 		case DO:
 			//if symbol is do, we just evaluate the nodes and return the (result of the) last node
 			//note do's second element will be a list of lists so we need to unwrap it
-			doList, isDoList := n.value[1].(SexpList)
-			if !isDoList {
-				log.Fatal("Error parsing body of do statement")
-			}
-			for i := 0; i < len(doList.value); i++ {
-				toReturn = env.evalNode(doList.value[i])
+			for i := 1; i < len(n.value); i++ {
+				toReturn = env.evalNode(n.value[i])
 			}
 		case PLUS, MINUS, MULTIPLY, DIVIDE, GEQUAL, LEQUAL, GTHAN, LTHAN, AND, OR, NOT, EQUAL:
 			//loop through elements in the list and carry out operation, will need to be adapted as we add more functionality

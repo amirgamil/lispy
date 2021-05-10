@@ -147,6 +147,7 @@ func (l *Lexer) getSymbol() Token {
 		token = newToken(NOT, "not")
 	case "do":
 		token = newToken(DO, "do")
+
 	//will add others later
 	default:
 		token = newToken(SYMBOL, val)
@@ -184,13 +185,9 @@ func (l *Lexer) scanToken() Token {
 		token = newToken(LSQUARE, "[")
 	case ']':
 		token = newToken(RSQUARE, "]")
-	case '`':
+	case '\'':
 		l.advance()
-		if l.Char == '(' {
-			token = l.getUntil(')', QUOTE, true)
-		} else {
-			token = l.getUntil(' ', QUOTE, false)
-		}
+		token = newToken(QUOTE, "'")
 	case ';':
 		token = newToken(FALSE, "nil")
 		l.getUntil('\n', COMMENT, true)

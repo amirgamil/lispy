@@ -1,1 +1,19 @@
-(println "hello")
+(define outer [x]
+    (do 
+        (define inner [x]
+            (x)
+        )
+        (inner 5)
+        (x)
+    )
+)
+
+(outer 3)
+(outer 3)
+
+
+
+
+
+
+(define outer [x] (do (define inner [x] (+ x 2 )) (inner 2)))

@@ -1,11 +1,16 @@
 package lispy
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 )
 
 type LispyUserFunction func(env *Env, name string, args []Sexp) Sexp
+
+//turns this into something that can take an annonymous inner function and return LispyUserFunction?
+//or FunctionValue to store in the environment?
+// func makeLispyFunc()
 
 /******* handle definitions *********/
 //create new variable binding
@@ -34,12 +39,19 @@ func getVarBinding(env *Env, key string, args []Sexp) Sexp {
 //create new function binding
 func funcDefinition(env *Env, s *SexpFunctionLiteral) Sexp {
 	//FunctionValue is a compile-time representation of a function
-	env.store[s.name] = FunctionValue{defn: s, parent: env}
+	env.store[s.name] = FunctionValue{defn: s}
 	//fix this
 	return SexpSymbol{ofType: STRING, value: "#user/" + s.name}
 }
 
 func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
+	//note quite critically, we need to evaluate the result of any expression arguments BEFORE we set them
+	//(before any old values get overwritten)
+	newExprs := make([]Sexp, 0)
+	for _, toEvaluate := range s.arguments.value {
+		newExprs = append(newExprs, env.evalNode(toEvaluate))
+	}
+
 	node, isFuncLiteral := env.store[s.name].(FunctionValue)
 	if !isFuncLiteral {
 		log.Fatal("Error, badly defined function")
@@ -48,22 +60,16 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 	if len(node.defn.arguments.value) > len(s.arguments.value) {
 		log.Fatal("Incorrect number of arguments passed in!")
 	}
-	//note quite critically, we need to evaluate the result of any expression arguments BEFORE we set them
-	//(before any old values get overwritten)
-	newExprs := make([]Sexp, 0)
-	for _, toEvaluate := range s.arguments.value {
-		newExprs = append(newExprs, env.evalNode(toEvaluate))
-	}
 	//load the passed in data to the arguments of the function in the environment
 	for i, arg := range node.defn.arguments.value {
 		env.store[arg.String()] = newExprs[i]
 	}
-	return evalLispyFunction(env, node)
+	return evalLispyFunction(env, node.defn.body)
 }
 
 //evaluate a previously-user defined function
-func evalLispyFunction(env *Env, fn FunctionValue) Sexp {
-	return env.evalNode(fn.defn.body)
+func evalLispyFunction(env *Env, s Sexp) Sexp {
+	return env.evalNode(s)
 }
 
 /******* handle conditional statements *********/
@@ -91,9 +97,10 @@ func conditionalStatement(env *Env, name string, args []Sexp) Sexp {
 func printlnStatement(env *Env, name string, args []Sexp) Sexp {
 	for _, arg := range args {
 		res := env.evalNode(arg)
-		// fmt.Println(res.String())
-		return res
+		fmt.Print(res.String(), " ")
+		// return res
 	}
+	fmt.Println()
 	return nil
 }
 

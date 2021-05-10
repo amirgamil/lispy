@@ -1,15 +1,14 @@
 ; where more powerful package stuff will be 
 
 ;factorial
-(define fact [n] 
-    (if (= n 0) 
-        1
-        (* n (fact (- n 1)))
-    )
-)
+(define fact [n] (if (= n 0) 1 (* n (fact (- n 1)))))
 
 ;figure out why >21 causes problems
-(fact 25)
+(fact 5) => 120
+
+(+ 2 4 7) => 13
+(/ 8 3) => 2
+
 
 (define oldEnough [age]
     (if (> age 21)
@@ -18,8 +17,8 @@
     )
 )
 
-(oldEnough 22)
-(oldEnough 18)
+(oldEnough 22) => cool
+(oldEnough 18) => not cool
 
 
 (define str [a b]

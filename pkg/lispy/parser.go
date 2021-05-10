@@ -104,7 +104,6 @@ func (f SexpFunctionCall) String() string {
 func Parse(tokens []Token) ([]Sexp, error) {
 	idx, length := 0, len(tokens)
 	nodes := make([]Sexp, 0)
-
 	for idx < length && tokens[idx].Token != EOF {
 		expr, add, err := parseExpr(tokens[idx:])
 		if err != nil {
@@ -226,6 +225,14 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 		if err != nil {
 			return nil, 0, err
 		}
+	// case QUOTE:
+	// 	idx++
+	// 	if idx < len(tokens) && tokens[idx].Token == LPAREN {
+	// 		expr, add, err = parseList
+	// 	} else {
+	// 		expr = SexpSymbol{ofType: QUOTE, value: tokens[idx].Literal}
+	// 		idx++
+	// 	}
 	case INTEGER:
 		i, err := strconv.Atoi(tokens[idx].Literal)
 		if err != nil {
@@ -242,11 +249,10 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 		idx++
 	//eventually refactor to handle other symbols like identifiers
 	//create a map with all of these operators pre-stored and just get, or default, passing in tokentype to check if it exists
-	case PLUS, MULTIPLY, DIVIDE, MINUS, STRING, TRUE, FALSE, GEQUAL, LEQUAL, GTHAN, LTHAN, EQUAL, AND, OR, NOT, IF, PRINT, QUOTE, DO, SYMBOL:
+	case PLUS, MULTIPLY, DIVIDE, MINUS, STRING, TRUE, FALSE, GEQUAL, LEQUAL, GTHAN, LTHAN, EQUAL, QUOTE, AND, OR, NOT, IF, PRINT, DO, SYMBOL:
 		expr = SexpSymbol{ofType: tokens[idx].Token, value: tokens[idx].Literal}
 		idx++
 	default:
-		fmt.Println(tokens[idx])
 		log.Fatal("error parsing")
 	}
 	return expr, idx, nil
