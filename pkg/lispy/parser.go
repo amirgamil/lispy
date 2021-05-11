@@ -44,60 +44,74 @@ func (n SexpFloat) String() string {
 	return fmt.Sprintf("%f", n)
 }
 
-//List node in our AST
-//Implement a list trivially as this for now
-//change to linkedlist later (since in Lisp an Sexp is defined inductively)
-type SexpList struct {
-	ofType TokenType
-	value  []Sexp
+//SexpPair is an implementation of a cons cell with a head (car) and tail (cdr)
+//Lists in lispy are defined as linked lists of cons cells
+type SexpPair struct {
+	head Sexp
+	tail Sexp
 }
 
-func (l SexpList) String() string {
-	if len(l.value) == 0 {
+func (l SexpPair) String() string {
+	if l.head == nil {
 		return "[]"
 	}
 
 	strBuilder := make([]string, 0)
 	strBuilder = append(strBuilder, "[")
-	for i := 0; i < len(l.value); i++ {
-		strBuilder = append(strBuilder, l.value[i].String())
+	pair := l
+
+	for {
+		strBuilder = append(strBuilder, pair.head.String())
+		switch pair.tail.(type) {
+		case SexpPair:
+			pair = pair.tail.(SexpPair)
+			continue
+		}
+		break
 	}
+
 	strBuilder = append(strBuilder, "]")
-	return strings.Join(strBuilder, ",")
+	return strings.Join(strBuilder, " ")
+}
+
+type SexpArray struct {
+	ofType TokenType
+	value  []Sexp
+}
+
+func (s SexpArray) String() string {
+	args := make([]string, 0)
+	for _, node := range s.value {
+		args = append(args, node.String())
+	}
+	return "[" + strings.Join(args, " ") + "]"
 }
 
 //SexpFunction Literal to store the functions when parsing them
 type SexpFunctionLiteral struct {
 	name string
 	//when we store the arguments, will call arg.String() for each arg - may need to be fixed for some edge cases
-	arguments SexpList
+	arguments SexpArray
 	body      Sexp
 }
 
 func (f SexpFunctionLiteral) String() string {
-	args := make([]string, 0)
-	for _, node := range f.arguments.value {
-		args = append(args, node.String())
-	}
+
 	return fmt.Sprintf("Define (%s) on (%s)",
 		f.name,
-		strings.Join(args, ", "))
+		f.arguments.String())
 }
 
 type SexpFunctionCall struct {
 	//for now keep arguments as string, in future potentially refacto wrap in SexpIdentifierNode
 	name      string
-	arguments SexpList
+	arguments SexpPair
 }
 
 func (f SexpFunctionCall) String() string {
-	args := make([]string, 0)
-	for _, node := range f.arguments.value {
-		args = append(args, node.String())
-	}
 	return fmt.Sprintf("Function call (%s) on (%s)",
 		f.name,
-		strings.Join(args, ", "))
+		f.arguments.String())
 }
 
 /********** PARSING CODE ****************/
@@ -117,33 +131,42 @@ func Parse(tokens []Token) ([]Sexp, error) {
 
 //Implement a list trivially as this for now
 func parseList(tokens []Token) (Sexp, int, error) {
-	idx, length := 0, len(tokens)
-	arr := make([]Sexp, 0)
-	for idx < length && tokens[idx].Token != RPAREN {
-		currExpr, add, err := parseExpr(tokens[idx:])
-		if err != nil {
-			return nil, 0, err
-		}
-		idx += add
-		arr = append(arr, currExpr)
+	idx := 0
+	curr := SexpPair{head: nil, tail: nil}
+	if tokens[idx].Token == RPAREN {
+		//return idx of 1 so we skip the RPAREN
+		return nil, 1, nil
 	}
-	return SexpList{ofType: LIST, value: arr}, idx + 1, nil
+	currExpr, add, err := parseExpr(tokens[idx:])
+	if err != nil {
+		return nil, 0, err
+	}
+	idx += add
+	curr.head = currExpr
+	//recursively build out list of cons cells
+	tailExpr, addTail, err := parseList(tokens[idx:])
+	if err != nil {
+		return nil, 0, err
+	}
+	idx += addTail
+	curr.tail = tailExpr
+	return curr, idx, nil
 }
 
 //parses array e.g. in arguments of a function
-func parseArray(tokens []Token) (SexpList, int, error) {
+func parseArray(tokens []Token) (SexpArray, int, error) {
 	idx, length := 0, len(tokens)
 	arr := make([]Sexp, 0)
 
 	for idx < length && tokens[idx].Token != RSQUARE {
 		expr, add, err := parseExpr(tokens[idx:])
 		if err != nil {
-			return SexpList{}, 0, err
+			return SexpArray{}, 0, err
 		}
 		idx += add
 		arr = append(arr, expr)
 	}
-	return SexpList{ofType: ARRAY, value: arr}, idx + 1, nil
+	return SexpArray{ofType: ARRAY, value: arr}, idx + 1, nil
 }
 
 //parses a function literal
@@ -179,7 +202,7 @@ func parseFunctionCall(tokens []Token) (Sexp, int, error) {
 	idx += 1
 	args, add, err := parseList(tokens[idx:])
 	//is there a better way than to type assert?
-	origArgs, isArgs := args.(SexpList)
+	origArgs, isArgs := args.(SexpPair)
 	if !isArgs {
 		log.Fatal("Error parsing function parameters")
 	}

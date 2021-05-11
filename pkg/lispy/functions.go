@@ -48,16 +48,15 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 	//note quite critically, we need to evaluate the result of any expression arguments BEFORE we set them
 	//(before any old values get overwritten)
 	newExprs := make([]Sexp, 0)
-	for _, toEvaluate := range s.arguments.value {
+	for _, toEvaluate := range makeList(s.arguments) {
 		newExprs = append(newExprs, env.evalNode(toEvaluate))
 	}
-
 	node, isFuncLiteral := env.store[s.name].(FunctionValue)
 	if !isFuncLiteral {
 		log.Fatal("Error, badly defined function")
 	}
 	//check we have the correct number of parameters
-	if len(node.defn.arguments.value) > len(s.arguments.value) {
+	if len(node.defn.arguments.value) != len(newExprs) {
 		log.Fatal("Incorrect number of arguments passed in!")
 	}
 	//load the passed in data to the arguments of the function in the environment
