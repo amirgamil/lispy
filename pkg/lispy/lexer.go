@@ -172,6 +172,31 @@ func (l *Lexer) getUntil(until byte, token TokenType, after bool) Token {
 	return newToken(token, l.Input[old:l.Position])
 }
 
+// func (l *Lexer) getQuote() Token {
+// 	old := l.Position
+// 	left := 0
+// 	end := false
+// 	if l.Char == '(' {
+// 		left = 1
+// 	}
+// 	for left >= 0 && !end {
+// 		l.advance()
+// 		if l.Char == '(' {
+// 			left += 1
+// 		} else if l.Char == ')' || (left == 0 && l.Char == ' ') {
+// 			left -= 1
+// 			if left == 0 {
+// 				//case where initially (, so set end to prevent infinite loop
+// 				end = true
+// 				//skip )
+// 				l.advance()
+// 			}
+// 		}
+// 	}
+// 	fmt.Println("here => ", l.Input[old:l.Position])
+// 	return newToken(QUOTE, l.Input[old:l.Position])
+// }
+
 func (l *Lexer) scanToken() Token {
 	//skips white space and new lines
 	l.skipWhiteSpace()
@@ -186,7 +211,6 @@ func (l *Lexer) scanToken() Token {
 	case ']':
 		token = newToken(RSQUARE, "]")
 	case '\'':
-		l.advance()
 		token = newToken(QUOTE, "'")
 	case ';':
 		token = newToken(FALSE, "nil")

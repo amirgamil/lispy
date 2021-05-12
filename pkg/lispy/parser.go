@@ -93,13 +93,18 @@ type SexpFunctionLiteral struct {
 	//when we store the arguments, will call arg.String() for each arg - may need to be fixed for some edge cases
 	arguments SexpArray
 	body      Sexp
+	//userfunc represents a native built-in implementation (which can be overrided e.g. with macros through the body argument)
+	userfunc LispyUserFunction
 }
 
 func (f SexpFunctionLiteral) String() string {
-
-	return fmt.Sprintf("Define (%s) on (%s)",
-		f.name,
-		f.arguments.String())
+	if f.userfunc == nil {
+		return fmt.Sprintf("Define (%s) on (%s)",
+			f.name,
+			f.arguments.String())
+	} else {
+		return "Built-in native implementation function"
+	}
 }
 
 type SexpFunctionCall struct {
@@ -192,7 +197,7 @@ func parseFunctionLiteral(tokens []Token) (Sexp, int, error) {
 	}
 	idx += addBlock
 	//entire function include define was enclosed in (), note DON'T SKIP 1 otherwise may read code outside function
-	return SexpFunctionLiteral{name: name, arguments: args, body: body}, idx, nil
+	return SexpFunctionLiteral{name: name, arguments: args, body: body, userfunc: nil}, idx, nil
 }
 
 //parses a function call
@@ -270,15 +275,31 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 		}
 		expr = SexpFloat(i)
 		idx++
+	case QUOTE:
+		idx++
+		nextExpr, toAdd, errorL := parseExpr(tokens[idx:])
+		if errorL != nil {
+			log.Fatal("Error parsing quote!")
+		}
+		expr = MakeList([]Sexp{SexpSymbol{ofType: QUOTE, value: "'"}, nextExpr})
+		idx += toAdd
 	//eventually refactor to handle other symbols like identifiers
 	//create a map with all of these operators pre-stored and just get, or default, passing in tokentype to check if it exists
-	case PLUS, MULTIPLY, DIVIDE, MINUS, STRING, TRUE, FALSE, GEQUAL, LEQUAL, GTHAN, LTHAN, EQUAL, QUOTE, AND, OR, NOT, IF, PRINT, DO, SYMBOL:
+	case PLUS, MULTIPLY, DIVIDE, MINUS, STRING, TRUE, FALSE, GEQUAL, LEQUAL, GTHAN, LTHAN, EQUAL, AND, OR, NOT, IF, PRINT, DO, SYMBOL:
 		expr = SexpSymbol{ofType: tokens[idx].Token, value: tokens[idx].Literal}
 		idx++
 	default:
 		log.Fatal("error parsing")
 	}
 	return expr, idx, nil
+}
+
+func MakeList(expressions []Sexp) Sexp {
+	if len(expressions) == 0 {
+		return nil
+	}
+
+	return Cons(expressions[0], MakeList(expressions[1:]))
 }
 
 /*

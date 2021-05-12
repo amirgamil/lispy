@@ -51,9 +51,15 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 	for _, toEvaluate := range makeList(s.arguments) {
 		newExprs = append(newExprs, env.evalNode(toEvaluate))
 	}
+
 	node, isFuncLiteral := env.store[s.name].(FunctionValue)
 	if !isFuncLiteral {
 		log.Fatal("Error, badly defined function")
+	}
+	//Call LispyUserFunction if this is a builtin function
+	//note if user-defined version exists, then it takes precedence (to ensure idea of macro functions correctly)
+	if node.defn.userfunc != nil && node.defn.body == nil {
+		return node.defn.userfunc(env, s.name, newExprs)
 	}
 	//check we have the correct number of parameters
 	if len(node.defn.arguments.value) != len(newExprs) {
@@ -63,12 +69,52 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 	for i, arg := range node.defn.arguments.value {
 		env.store[arg.String()] = newExprs[i]
 	}
-	return evalLispyFunction(env, node.defn.body)
+	//evaluate user-defined function
+	return env.evalNode(node.defn.body)
 }
 
-//evaluate a previously-user defined function
-func evalLispyFunction(env *Env, s Sexp) Sexp {
-	return env.evalNode(s)
+//helper function to take a function and return a function literal which can be saved to the environment
+func makeUserFunction(name string, function LispyUserFunction) FunctionValue {
+	var sfunc SexpFunctionLiteral
+	sfunc.name = name
+	sfunc.userfunc = function
+	return FunctionValue{defn: &sfunc}
+}
+
+/******* cars, cons, cdr **********/
+func car(env *Env, name string, args []Sexp) Sexp {
+	//need to unwrap twice since function call arguments wrap inner arguments in a SexpPair
+	//so we have SexpPair{head: SexpPair{...}}
+	arg := args[0]
+	pair1, isPair1 := arg.(SexpPair)
+	if !isPair1 {
+		log.Fatal("Error with car")
+	}
+	switch i := pair1.head.(type) {
+	case SexpPair:
+		return i.head
+	case SexpInt, SexpFloat:
+		return i
+	}
+	return nil
+}
+
+func Cons(a Sexp, b Sexp) SexpPair {
+	return SexpPair{a, b}
+}
+
+/******* return quote *********/
+func returnQuote(args []Sexp) Sexp {
+	list, isList := args[0].(SexpPair)
+	if !isList {
+		return args[0]
+	}
+	l := makeList(list)
+	stringQuote := ""
+	for _, el := range l {
+		stringQuote += el.String()
+	}
+	return SexpSymbol{ofType: STRING, value: stringQuote}
 }
 
 /******* handle conditional statements *********/

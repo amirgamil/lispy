@@ -35,10 +35,19 @@ func (f FunctionValue) String() string {
 	return f.defn.String()
 }
 
+func returnDefinedFunctions() map[string]LispyUserFunction {
+	functions := make(map[string]LispyUserFunction)
+	functions["car"] = car
+	return functions
+}
+
 func InitState() *Env {
 	//add more ops as need for function bodies, assignments etc
 	env := new(Env)
 	env.store = make(map[string]Value)
+	for key, function := range returnDefinedFunctions() {
+		env.store[key] = makeUserFunction(key, function)
+	}
 	//this is the global reference, so set the pointer to nil
 	env.global = nil
 	return env
@@ -54,7 +63,9 @@ func (env *Env) evalSymbol(s SexpSymbol, args []Sexp) Sexp {
 		return relationalOperator(env, s.value, args)
 	case AND, OR, NOT:
 		return logicalOperator(env, s.value, args)
-	case TRUE, FALSE, QUOTE, STRING:
+	case QUOTE:
+		return returnQuote(args)
+	case TRUE, FALSE, STRING:
 		return s
 	case IF:
 		return conditionalStatement(env, s.value, args)
@@ -89,6 +100,7 @@ func (env *Env) evalList(n SexpPair) Sexp {
 	}
 
 	tail, isTail := n.tail.(SexpPair)
+
 	switch n.head.(type) {
 	case SexpSymbol:
 		symbol, ok := n.head.(SexpSymbol)
@@ -104,6 +116,11 @@ func (env *Env) evalList(n SexpPair) Sexp {
 			}
 			//binding to a variable
 			toReturn = env.evalSymbol(symbol, makeList(tail))
+		case QUOTE:
+			if !isTail {
+				log.Fatal("Error trying to interpret quote")
+			}
+			toReturn = tail
 		case PRINT:
 			if n.tail == nil {
 				log.Fatal("Error trying to print nothing!")
@@ -168,6 +185,7 @@ func (env *Env) evalList(n SexpPair) Sexp {
 	case SexpPair:
 		original, ok := n.head.(SexpPair)
 		if ok {
+
 			toReturn = env.evalList(original)
 		} else {
 			log.Fatal("error interpreting nested list")
@@ -229,21 +247,22 @@ func Eval(nodes []Sexp, env *Env) []string {
 	return res
 }
 
-func listLen(expr Sexp) int {
-	sz := 0
-	var list *SexpPair
-	ok := false
-	for expr != nil {
-		list, ok = expr.(*SexpPair)
-		if !ok {
-			log.Fatal("ListLen() called on non-list")
-		}
-		sz++
-		expr = list.tail
-	}
-	return sz
-}
+// func listLen(expr Sexp) int {
+// 	sz := 0
+// 	var list *SexpPair
+// 	ok := false
+// 	for expr != nil {
+// 		list, ok = expr.(*SexpPair)
+// 		if !ok {
+// 			log.Fatal("ListLen() called on non-list")
+// 		}
+// 		sz++
+// 		expr = list.tail
+// 	}
+// 	return sz
+// }
 
+//helper function to return a list of Sexp nodes from a linked list of cons cell
 func makeList(s SexpPair) []Sexp {
 	toReturn := make([]Sexp, 0)
 	for {
