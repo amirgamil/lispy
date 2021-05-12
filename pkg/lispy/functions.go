@@ -82,14 +82,25 @@ func makeUserFunction(name string, function LispyUserFunction) FunctionValue {
 }
 
 /******* cars, cons, cdr **********/
+//helper function to unwrap quote data
+func unwrap(arg Sexp) SexpPair {
+	pair1, isPair1 := arg.(SexpPair)
+	if !isPair1 {
+		log.Fatal("Error unwrapping for built in functions")
+	}
+	if pair1.tail == nil {
+		return pair1
+	} else {
+		//to allow for recursive calls from cons (which remove the double wrap), so return the correct depth
+		return SexpPair{head: pair1, tail: nil}
+	}
+
+}
+
 func car(env *Env, name string, args []Sexp) Sexp {
 	//need to unwrap twice since function call arguments wrap inner arguments in a SexpPair
 	//so we have SexpPair{head: SexpPair{...}}
-	arg := args[0]
-	pair1, isPair1 := arg.(SexpPair)
-	if !isPair1 {
-		log.Fatal("Error with car")
-	}
+	pair1 := unwrap(args[0])
 	switch i := pair1.head.(type) {
 	case SexpPair:
 		return i.head
@@ -99,7 +110,29 @@ func car(env *Env, name string, args []Sexp) Sexp {
 	return nil
 }
 
-func Cons(a Sexp, b Sexp) SexpPair {
+func cdr(env *Env, name string, args []Sexp) Sexp {
+	pair1 := unwrap(args[0])
+	switch i := pair1.head.(type) {
+	case SexpPair:
+		return i.tail
+	default:
+		log.Fatal("argument 0 of cdr has wrong type!")
+	}
+	return nil
+}
+
+func cons(env *Env, name string, args []Sexp) Sexp {
+	if len(args) < 2 {
+		log.Fatal("Incorrect number of arguments!")
+	}
+
+	//unwrap the list in the block quote (need to evaluate first to allow for recursive calls)
+	list := unwrap(args[1])
+	newHead := consHelper(args[0], list.head)
+	return newHead
+}
+
+func consHelper(a Sexp, b Sexp) SexpPair {
 	return SexpPair{a, b}
 }
 

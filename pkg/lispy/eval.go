@@ -38,6 +38,8 @@ func (f FunctionValue) String() string {
 func returnDefinedFunctions() map[string]LispyUserFunction {
 	functions := make(map[string]LispyUserFunction)
 	functions["car"] = car
+	functions["cdr"] = cdr
+	functions["cons"] = cons
 	return functions
 }
 
@@ -185,7 +187,6 @@ func (env *Env) evalList(n SexpPair) Sexp {
 	case SexpPair:
 		original, ok := n.head.(SexpPair)
 		if ok {
-
 			toReturn = env.evalList(original)
 		} else {
 			log.Fatal("error interpreting nested list")

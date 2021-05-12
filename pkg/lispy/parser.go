@@ -299,7 +299,7 @@ func MakeList(expressions []Sexp) Sexp {
 		return nil
 	}
 
-	return Cons(expressions[0], MakeList(expressions[1:]))
+	return consHelper(expressions[0], MakeList(expressions[1:]))
 }
 
 /*
