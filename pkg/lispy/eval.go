@@ -1,6 +1,7 @@
 package lispy
 
 import (
+	"fmt"
 	"log"
 	"strings"
 )
@@ -230,6 +231,7 @@ func (env *Env) evalNode(node Sexp) Sexp {
 			log.Fatal("Error evaluating function call")
 		}
 	default:
+		fmt.Println(node)
 		//TODO: fix this later
 		log.Fatal("error unexpected node")
 	}

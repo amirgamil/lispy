@@ -7,13 +7,12 @@ Spec
 - [x] Bindings to variables and state 
 - [x] Logical and relational operators
 - [x] Conditions
+- [x] Reading Lispy code from a file
 - [x] Functions
-    - [ ] Thoroughly tested
-- [ ] Refactor so bool, string have their own type in parser
+    - [x] Thoroughly tested
 - [ ] Support for strings
 - [ ] Local bindings via let
 - [ ] Tail-optimized recursion
-- [ ] Reading input from a file
 - [ ] Parsing multiple lines in the REPL
 
 

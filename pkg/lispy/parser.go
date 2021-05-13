@@ -53,13 +53,24 @@ type SexpPair struct {
 
 func (l SexpPair) String() string {
 	if l.head == nil {
-		return "[]"
+		return "()"
 	}
 
 	strBuilder := make([]string, 0)
-	strBuilder = append(strBuilder, "[")
 	pair := l
-
+	count := 0
+	if l.tail == nil {
+		count += 1
+		//not great way, is there a better way?
+		switch pair.head.(type) {
+		case SexpPair:
+			//hacky way of not doing anything
+			count = count
+		default:
+			//subtract 1 if this is just block data not in a list
+			count -= 1
+		}
+	}
 	for {
 		strBuilder = append(strBuilder, pair.head.String())
 		switch pair.tail.(type) {
@@ -69,9 +80,7 @@ func (l SexpPair) String() string {
 		}
 		break
 	}
-
-	strBuilder = append(strBuilder, "]")
-	return strings.Join(strBuilder, " ")
+	return strings.Repeat("(", count) + strings.Join(strBuilder, " ") + strings.Repeat(")", count)
 }
 
 type SexpArray struct {
@@ -246,6 +255,10 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 		//check if this is a function call i.e. the next token is a symbol
 		if idx < len(tokens) && tokens[idx].Token == SYMBOL && tokens[idx].Literal != "define" {
 			expr, add, err = parseFunctionCall(tokens[idx:])
+		} else if tokens[idx].Token == RPAREN {
+			//check for empty list
+			expr = SexpPair{head: nil, tail: nil}
+			add = 1
 		} else {
 			expr, add, err = parseList(tokens[idx:])
 		}
