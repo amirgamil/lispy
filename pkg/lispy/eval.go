@@ -41,6 +41,19 @@ func returnDefinedFunctions() map[string]LispyUserFunction {
 	functions["car"] = car
 	functions["cdr"] = cdr
 	functions["cons"] = cons
+	functions["+"] = binaryOperation
+	functions["-"] = binaryOperation
+	functions["/"] = binaryOperation
+	functions["*"] = binaryOperation
+	functions["="] = relationalOperator
+	functions[">="] = relationalOperator
+	functions[">="] = relationalOperator
+	functions[">"] = relationalOperator
+	functions["<"] = relationalOperator
+	functions["and"] = logicalOperator
+	functions["or"] = logicalOperator
+	functions["not"] = logicalOperator
+	functions["println"] = printlnStatement
 	return functions
 }
 
@@ -60,12 +73,6 @@ func (env *Env) evalSymbol(s SexpSymbol, args []Sexp) Sexp {
 	switch s.ofType {
 	case SYMBOL:
 		return getVarBinding(env, s.value, args)
-	case PLUS, MINUS, MULTIPLY, DIVIDE:
-		return binaryOperation(env, s.value, args)
-	case EQUAL, GEQUAL, LEQUAL, GTHAN, LTHAN:
-		return relationalOperator(env, s.value, args)
-	case AND, OR, NOT:
-		return logicalOperator(env, s.value, args)
 	case QUOTE:
 		return returnQuote(args)
 	case TRUE, FALSE, STRING:
@@ -74,8 +81,6 @@ func (env *Env) evalSymbol(s SexpSymbol, args []Sexp) Sexp {
 		return conditionalStatement(env, s.value, args)
 	case DEFINE:
 		return varDefinition(env, args[0].String(), args[1:])
-	case PRINT:
-		return printlnStatement(env, s.String(), args)
 	}
 	return nil
 }
@@ -104,7 +109,7 @@ func (env *Env) evalList(n SexpPair) Sexp {
 
 	tail, isTail := n.tail.(SexpPair)
 
-	switch n.head.(type) {
+	switch head := n.head.(type) {
 	case SexpSymbol:
 		symbol, ok := n.head.(SexpSymbol)
 		if !ok {
@@ -124,12 +129,6 @@ func (env *Env) evalList(n SexpPair) Sexp {
 				log.Fatal("Error trying to interpret quote")
 			}
 			toReturn = tail
-		case PRINT:
-			if n.tail == nil {
-				log.Fatal("Error trying to print nothing!")
-			}
-			arguments = makeList(tail)
-			toReturn = env.evalSymbol(symbol, arguments)
 		case IF:
 			if !isTail {
 				log.Fatal("Error - please provide a valid condition for the if statement")
@@ -157,32 +156,31 @@ func (env *Env) evalList(n SexpPair) Sexp {
 				}
 				break
 			}
-		case PLUS, MINUS, MULTIPLY, DIVIDE, GEQUAL, LEQUAL, GTHAN, LTHAN, AND, OR, NOT, EQUAL:
-			//loop through elements in the list and carry out operation, will need to be adapted as we add more functionality
-			if !isTail {
-				log.Fatal("Error, incorrect arguments passed into binary/relational operator")
-			}
-			for {
-				arguments = append(arguments, env.evalNode(tail.head))
-				switch tail.tail.(type) {
-				case SexpPair:
-					tail = tail.tail.(SexpPair)
-					continue
-				}
-				break
-			}
-
-			toReturn = env.evalSymbol(symbol, arguments)
 		default:
 			toReturn = env.evalSymbol(symbol, []Sexp{})
 		}
-	case SexpFunctionCall, SexpFunctionLiteral:
-		toReturn = env.evalNode(n.head)
-		//in a function literal, body should only be on Sexp, if there is more, throw an error
-		//in a function call, arguments will be pased into SexpFunctionCall so similar idea
-		if n.tail != nil {
-			log.Fatal("Error interpreting function declaration or literal - ensure only one Sexp in body of function literal!")
+	case SexpFunctionLiteral:
+		//anonymous function, so handle differently
+		if head.name == "fn" {
+			//save body of function to the env then call
+			funcDefinition(env, &head)
+			fmt.Println(tail)
+			fmt.Println("hello")
+			if !isTail {
+				log.Fatal("Error parsing anonymous function parameters")
+			}
+			funcCall := SexpFunctionCall{name: "fn", arguments: tail, body: nil}
+			toReturn = env.evalFunctionCall(&funcCall)
+		} else {
+			toReturn = env.evalNode(n.head)
+			//in a function literal, body should only be on Sexp, if there is more, throw an error
+			//in a function call, arguments will be pased into SexpFunctionCall so similar idea
+			if n.tail != nil {
+				log.Fatal("Error interpreting function declaration or literal - ensure only one Sexp in body of function literal!")
+			}
 		}
+	case SexpFunctionCall:
+		toReturn = env.evalNode(n.head)
 	case SexpInt, SexpFloat:
 		toReturn = n.head
 	case SexpPair:
@@ -231,7 +229,6 @@ func (env *Env) evalNode(node Sexp) Sexp {
 			log.Fatal("Error evaluating function call")
 		}
 	default:
-		fmt.Println(node)
 		//TODO: fix this later
 		log.Fatal("error unexpected node")
 	}

@@ -120,6 +120,8 @@ type SexpFunctionCall struct {
 	//for now keep arguments as string, in future potentially refacto wrap in SexpIdentifierNode
 	name      string
 	arguments SexpPair
+	//used for annonymous function calls
+	body Sexp
 }
 
 func (f SexpFunctionCall) String() string {
@@ -183,22 +185,35 @@ func parseArray(tokens []Token) (SexpArray, int, error) {
 	return SexpArray{ofType: ARRAY, value: arr}, idx + 1, nil
 }
 
-//parses a function literal
-func parseFunctionLiteral(tokens []Token) (Sexp, int, error) {
-	idx := 0
-	if tokens[0].Token != SYMBOL {
+func getName(token Token) string {
+	if token.Token != SYMBOL {
 		log.Fatal("Unexpected syntax trying to define a function")
 	}
 	//function name will be at index 0
-	name := tokens[0].Literal
-	//skip the [ and go to the next character
-	idx += 2
-	//parse arguments first
-	args, add, err := parseArray(tokens[idx:])
-	if err != nil {
-		return nil, 0, err
+	name := token.Literal
+	return name
+}
+
+//parses a function literal
+func parseFunctionLiteral(tokens []Token, name string) (Sexp, int, error) {
+	idx := 0
+	var args SexpArray
+	var add int
+	var err error
+	if tokens[idx].Token == LSQUARE {
+		//skip the [ and go to the next character
+		idx += 1
+		//parse arguments first
+		args, add, err = parseArray(tokens[idx:])
+		if err != nil {
+			return nil, 0, err
+		}
+		idx += add
+	} else {
+		//means we have a lambda expression here
+		args = SexpArray{}
 	}
-	idx += add
+
 	//parse body of the function which which will be an Sexpr
 	body, addBlock, err := parseExpr(tokens[idx:])
 	if err != nil {
@@ -206,11 +221,11 @@ func parseFunctionLiteral(tokens []Token) (Sexp, int, error) {
 	}
 	idx += addBlock
 	//entire function include define was enclosed in (), note DON'T SKIP 1 otherwise may read code outside function
-	return SexpFunctionLiteral{name: name, arguments: args, body: body, userfunc: nil}, idx, nil
+	return SexpFunctionLiteral{name: name, arguments: args, body: body, userfunc: nil}, idx + 1, nil
 }
 
 //parses a function call
-func parseFunctionCall(tokens []Token) (Sexp, int, error) {
+func parseFunctionCall(tokens []Token, body Sexp) (Sexp, int, error) {
 	idx := 0
 	name := tokens[0].Literal
 	idx += 1
@@ -224,7 +239,7 @@ func parseFunctionCall(tokens []Token) (Sexp, int, error) {
 		return nil, 0, err
 	}
 	idx += add
-	return SexpFunctionCall{name: name, arguments: origArgs}, idx, nil
+	return SexpFunctionCall{name: name, arguments: origArgs, body: nil}, idx, nil
 }
 
 //parses a single expression (list or non-list)
@@ -237,10 +252,11 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 	switch tokens[idx].Token {
 	case DEFINE:
 		//look ahead one to check if it's a function or just data-binding
-		if idx+2 < len(tokens) && tokens[idx+2].Token == LSQUARE {
+		if idx+2 < len(tokens) && (tokens[idx+2].Token == LSQUARE || tokens[idx+2].Token == LPAREN) {
 			//skip define token
 			idx++
-			expr, add, err = parseFunctionLiteral(tokens[idx:])
+			name := getName(tokens[idx])
+			expr, add, err = parseFunctionLiteral(tokens[idx+1:], name)
 			if err != nil {
 				return nil, 0, err
 			}
@@ -252,9 +268,16 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 		}
 	case LPAREN:
 		idx++
-		//check if this is a function call i.e. the next token is a symbol
-		if idx < len(tokens) && tokens[idx].Token == SYMBOL && tokens[idx].Literal != "define" {
-			expr, add, err = parseFunctionCall(tokens[idx:])
+		//check if anonymous function
+		if idx+1 < len(tokens) && tokens[idx].Token == FN && tokens[idx+1].Token == LSQUARE {
+			//skip fn
+			idx++
+			//give anonymous functions the same name because by definition, should not be able to refer
+			//to them after they have been defined (designed to execute there and then)
+			expr, add, err = parseFunctionLiteral(tokens[idx:], "fn")
+		} else if idx < len(tokens) && tokens[idx].Token == SYMBOL && tokens[idx].Token != DEFINE {
+			//check if this is a function call i.e. the next token is a symbol
+			expr, add, err = parseFunctionCall(tokens[idx:], nil)
 		} else if tokens[idx].Token == RPAREN {
 			//check for empty list
 			expr = SexpPair{head: nil, tail: nil}
@@ -298,10 +321,11 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 		idx += toAdd
 	//eventually refactor to handle other symbols like identifiers
 	//create a map with all of these operators pre-stored and just get, or default, passing in tokentype to check if it exists
-	case PLUS, MULTIPLY, DIVIDE, MINUS, STRING, TRUE, FALSE, GEQUAL, LEQUAL, GTHAN, LTHAN, EQUAL, AND, OR, NOT, IF, PRINT, DO, SYMBOL:
+	case STRING, TRUE, FALSE, IF, DO, SYMBOL:
 		expr = SexpSymbol{ofType: tokens[idx].Token, value: tokens[idx].Literal}
 		idx++
 	default:
+		fmt.Println(tokens[idx])
 		log.Fatal("error parsing")
 	}
 	return expr, idx, nil

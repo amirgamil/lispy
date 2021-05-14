@@ -29,27 +29,15 @@ const INTEGER TokenType = "INTEGER"
 const FLOAT TokenType = "FLOAT"
 
 //Symbols
-const PLUS TokenType = "PLUS"
-const MINUS TokenType = "MINUS"
 const STRING TokenType = "STRING"
-const MULTIPLY TokenType = "MULTIPLY"
-const DIVIDE TokenType = "DIVIDE"
-const EQUAL TokenType = "EQUAL"
-const GEQUAL TokenType = "GEQUAL"
-const LEQUAL TokenType = "LEQUAL"
-const GTHAN TokenType = "GTHAN"
-const LTHAN TokenType = "LTHAN"
 const COMMENT TokenType = "COMMENT"
 
 const ID TokenType = "ID"
 const IF TokenType = "IF"
+const FN TokenType = "FN"
 const DEFINE TokenType = "DEFINE"
-const PRINT TokenType = "PRINT"
 const TRUE TokenType = "TRUE"
 const FALSE TokenType = "FALSE"
-const AND TokenType = "AND"
-const OR TokenType = "OR"
-const NOT TokenType = "NOT"
 const QUOTE TokenType = "QUOTE"
 const DO TokenType = "DO"
 const LIST TokenType = "LIST"
@@ -133,21 +121,14 @@ func (l *Lexer) getSymbol() Token {
 		token = newToken(DEFINE, "define")
 	case "if":
 		token = newToken(IF, "if")
-	case "println":
-		token = newToken(PRINT, "println")
 	case "true":
 		token = newToken(TRUE, "true")
 	case "false", "nil":
 		token = newToken(FALSE, "false")
-	case "and":
-		token = newToken(AND, "and")
-	case "or":
-		token = newToken(OR, "or")
-	case "not":
-		token = newToken(NOT, "not")
 	case "do":
 		token = newToken(DO, "do")
-
+	case "fn":
+		token = newToken(FN, "fn")
 	//will add others later
 	default:
 		token = newToken(SYMBOL, val)
@@ -220,34 +201,6 @@ func (l *Lexer) scanToken() Token {
 		l.advance()
 		token = l.getUntil('"', STRING, false)
 		//skip final quote
-	case '+':
-		token = newToken(PLUS, "+")
-	case '.':
-		token = l.getFloat(l.Position)
-	case '-':
-		token = newToken(MINUS, "-")
-	case '/':
-		token = newToken(DIVIDE, "/")
-	case '*':
-		token = newToken(MULTIPLY, "*")
-	case '=':
-		token = newToken(EQUAL, "=")
-	case '>':
-		if l.peek() == '=' {
-			token = newToken(GTHAN, ">=")
-			//skip equal
-			l.advance()
-		} else {
-			token = newToken(GEQUAL, ">")
-		}
-	case '<':
-		if l.peek() == '=' {
-			token = newToken(LTHAN, "<=")
-			//skip equal
-			l.advance()
-		} else {
-			token = newToken(LEQUAL, "<")
-		}
 	case 0:
 		token = newToken(EOF, "EOF")
 	default:

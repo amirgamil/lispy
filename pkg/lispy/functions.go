@@ -69,7 +69,11 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 	for i, arg := range node.defn.arguments.value {
 		env.store[arg.String()] = newExprs[i]
 	}
-	//evaluate user-defined function
+	// //evaluate user-defined function
+	// //if anonynomous inner function, evaluate it
+	// if s.body != nil {
+	// 	return env.evalNode(s.body)
+	// }
 	return env.evalNode(node.defn.body)
 }
 
