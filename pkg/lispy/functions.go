@@ -3,6 +3,7 @@ package lispy
 import (
 	"fmt"
 	"log"
+	"reflect"
 	"strconv"
 )
 
@@ -90,6 +91,7 @@ func makeUserFunction(name string, function LispyUserFunction) FunctionValue {
 func unwrap(arg Sexp) SexpPair {
 	pair1, isPair1 := arg.(SexpPair)
 	if !isPair1 {
+		fmt.Println(reflect.TypeOf(pair1))
 		log.Fatal("Error unwrapping for built in functions")
 	}
 	if pair1.tail == nil {
@@ -110,8 +112,9 @@ func car(env *Env, name string, args []Sexp) Sexp {
 		return i.head
 	case SexpInt, SexpFloat:
 		return i
+	default:
+		return SexpSymbol{}
 	}
-	return nil
 }
 
 func cdr(env *Env, name string, args []Sexp) Sexp {

@@ -1,6 +1,6 @@
 # Lispy 
 #### A simple lisp interpreter written in Go
-Lispy is a tool and exercise to help me better understand lisp and more broadly functional programming. 
+Lispy is a dialect of Lisp inspired by Scheme and Clojure that was built to help me better understand lisp and more broadly functional programming. 
 
 Spec
 - [x] Arithmetic calculations with integers
@@ -33,9 +33,30 @@ script to run a passed in file. Note don't include the `<>` when passing a path 
 
 There is no distinction between statements and expressions -> everything is an expression! A function declaration will return the name of the functiion. A function will return the last expression of the body.
 
-Function bodies in Lisp consist of one Sexp. For example, this would throw an error. 
+
+#### Bindings via define
+Bindings to variables and functions in Lispy are done via the keyword define
 ```
-lispy > (define doMultipleThings [x] 
+lispy> (define a 5)
+#user/define
+lispy> a
+5
+```
+
+#### Conditionals via if
+Conditionals are handled with if statments that follow this pattern
+```
+(if (cond) true false)
+```
+True and false are S-expressions. For example
+```
+(if (>= age 20) (println "You're no longer a kid :(" ) (println "hell yeh, you living the good life"))
+```
+
+#### Functions
+Function bodies in Lisp consist of one Sexp. For example, this would throw an error. Parameters are passed via square brackets.
+```
+lispy> (define doMultipleThings [x] 
                 (+ x x)
                 (- x x)
         )
@@ -45,7 +66,7 @@ lispy > (define doMultipleThings [x]
 If you'd like to execute multiple expressions, wrap it in a do statement like this
 
 ```
-lispy > (define doMultipleThings [x] 
+lispy> (define doMultipleThings [x] 
                 ( do
                     (+ x x)
                     (- x x)
@@ -54,4 +75,13 @@ lispy > (define doMultipleThings [x]
         )
 
 ```
+Recursion is also supported in lispy so we can define a recursive function like this
+```
+lispy> (define fact [n] (if (= n 0) 1 (* n fact(- n 1))))
+#user/fact
+lispy> (fact 4)
+24
+```
 
+
+Remember () = call to function, so when passing to cons, car, cdr, make sure you have a quote
