@@ -1,7 +1,6 @@
 package lispy
 
 import (
-	"fmt"
 	"log"
 	"strings"
 )
@@ -73,8 +72,6 @@ func (env *Env) evalSymbol(s SexpSymbol, args []Sexp) Sexp {
 	switch s.ofType {
 	case SYMBOL:
 		return getVarBinding(env, s.value, args)
-	case QUOTE:
-		return returnQuote(args)
 	case TRUE, FALSE, STRING:
 		return s
 	case IF:
@@ -164,8 +161,6 @@ func (env *Env) evalList(n SexpPair) Sexp {
 		if head.name == "fn" {
 			//save body of function to the env then call
 			funcDefinition(env, &head)
-			fmt.Println(tail)
-			fmt.Println("hello")
 			if !isTail {
 				log.Fatal("Error parsing anonymous function parameters")
 			}
@@ -181,8 +176,6 @@ func (env *Env) evalList(n SexpPair) Sexp {
 		}
 	case SexpFunctionCall:
 		toReturn = env.evalNode(n.head)
-	case SexpInt, SexpFloat:
-		toReturn = n.head
 	case SexpPair:
 		original, ok := n.head.(SexpPair)
 		if ok {
@@ -192,7 +185,7 @@ func (env *Env) evalList(n SexpPair) Sexp {
 		}
 	//if it's just a list without a symbol at the front, treat it as data and return it
 	default:
-		toReturn = n.head
+		toReturn = n
 	}
 	return toReturn
 }

@@ -32,3 +32,26 @@ To run Lispy, you have two options.
 script to run a passed in file. Note don't include the `<>` when passing a path (I included it for clarity).
 
 There is no distinction between statements and expressions -> everything is an expression! A function declaration will return the name of the functiion. A function will return the last expression of the body.
+
+Function bodies in Lisp consist of one Sexp. For example, this would throw an error. 
+```
+lispy > (define doMultipleThings [x] 
+                (+ x x)
+                (- x x)
+        )
+
+```
+
+If you'd like to execute multiple expressions, wrap it in a do statement like this
+
+```
+lispy > (define doMultipleThings [x] 
+                ( do
+                    (+ x x)
+                    (- x x)
+                )
+                
+        )
+
+```
+

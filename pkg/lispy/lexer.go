@@ -42,6 +42,7 @@ const QUOTE TokenType = "QUOTE"
 const DO TokenType = "DO"
 const LIST TokenType = "LIST"
 const ARRAY TokenType = "ARRAY"
+const MACRO TokenType = "MACRO"
 
 type Token struct {
 	Token   TokenType
@@ -129,6 +130,8 @@ func (l *Lexer) getSymbol() Token {
 		token = newToken(DO, "do")
 	case "fn":
 		token = newToken(FN, "fn")
+	case "macro":
+		token = newToken(MACRO, "macro")
 	//will add others later
 	default:
 		token = newToken(SYMBOL, val)

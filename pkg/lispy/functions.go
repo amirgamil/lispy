@@ -140,20 +140,6 @@ func consHelper(a Sexp, b Sexp) SexpPair {
 	return SexpPair{a, b}
 }
 
-/******* return quote *********/
-func returnQuote(args []Sexp) Sexp {
-	list, isList := args[0].(SexpPair)
-	if !isList {
-		return args[0]
-	}
-	l := makeList(list)
-	stringQuote := ""
-	for _, el := range l {
-		stringQuote += el.String()
-	}
-	return SexpSymbol{ofType: STRING, value: stringQuote}
-}
-
 /******* handle conditional statements *********/
 func conditionalStatement(env *Env, name string, args []Sexp) Sexp {
 	condition, okC := args[0].(SexpSymbol)

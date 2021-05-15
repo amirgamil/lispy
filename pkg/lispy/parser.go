@@ -52,35 +52,26 @@ type SexpPair struct {
 }
 
 func (l SexpPair) String() string {
-	if l.head == nil {
-		return "()"
-	}
-
-	strBuilder := make([]string, 0)
+	str := "("
 	pair := l
-	count := 0
-	if l.tail == nil {
-		count += 1
-		//not great way, is there a better way?
-		switch pair.head.(type) {
-		case SexpPair:
-			//hacky way of not doing anything
-			count = count
-		default:
-			//subtract 1 if this is just block data not in a list
-			count -= 1
-		}
-	}
 	for {
-		strBuilder = append(strBuilder, pair.head.String())
 		switch pair.tail.(type) {
 		case SexpPair:
+			str += pair.head.String() + " "
 			pair = pair.tail.(SexpPair)
 			continue
 		}
 		break
 	}
-	return strings.Repeat("(", count) + strings.Join(strBuilder, " ") + strings.Repeat(")", count)
+	//add last item
+	str += pair.head.String()
+
+	if pair.tail == nil {
+		str += ")"
+	} else {
+		str += pair.tail.String() + ")"
+	}
+	return str
 }
 
 type SexpArray struct {
@@ -289,14 +280,6 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 		if err != nil {
 			return nil, 0, err
 		}
-	// case QUOTE:
-	// 	idx++
-	// 	if idx < len(tokens) && tokens[idx].Token == LPAREN {
-	// 		expr, add, err = parseList
-	// 	} else {
-	// 		expr = SexpSymbol{ofType: QUOTE, value: tokens[idx].Literal}
-	// 		idx++
-	// 	}
 	case INTEGER:
 		i, err := strconv.Atoi(tokens[idx].Literal)
 		if err != nil {
