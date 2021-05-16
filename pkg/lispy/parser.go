@@ -304,7 +304,6 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 			add = 1
 		} else {
 			expr, add, err = parseList(tokens[idx:])
-			fmt.Println(expr)
 		}
 		idx += add
 		if err != nil {

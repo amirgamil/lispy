@@ -45,9 +45,11 @@ func returnDefinedFunctions() map[string]LispyUserFunction {
 	functions["-"] = minus
 	functions["/"] = divide
 	functions["*"] = multiply
+	functions["#"] = expo
+	functions["%"] = modulo
 	functions["="] = equal
 	functions[">="] = gequal
-	functions[">="] = lequal
+	functions["<="] = lequal
 	functions[">"] = gthan
 	functions["<"] = lthan
 	functions["and"] = and
@@ -85,6 +87,10 @@ func (env *Env) evalSymbol(s SexpSymbol, args []Sexp) Sexp {
 }
 
 func (env *Env) evalFunctionLiteral(s *SexpFunctionLiteral) Sexp {
+	//if it's an anonymous function, just return it the way a function would be stored in the environment
+	if (s.name) == "fn" {
+		return FunctionValue{defn: s}
+	}
 	return funcDefinition(env, s)
 }
 
@@ -129,9 +135,9 @@ func (env *Env) evalList(n SexpPair) Sexp {
 			toReturn = tail
 		case IF:
 			if !isTail {
-				log.Fatal("Error - please provide a valid condition for the if statement")
+				fmt.Println("Error interpreting condition for the if statement")
 			}
-			arguments = append(arguments, env.evalList(tail))
+			arguments = append(arguments, env.evalNode(tail.head))
 			statements, isValid := tail.tail.(SexpPair)
 			if !isValid {
 				log.Fatal("Error please provide valid responses to the if condition!")

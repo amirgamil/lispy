@@ -3,16 +3,27 @@
 (define cdar [x] (cdr (car x)))
 (define cddr [x] (cdr (cdr x)))
 
-(macro when [terms]
-    (list ,if (car terms) (cadr terms))
-)
 
-(when (>= 5 2) 5)
+; basic expressions
+(define sqrt [x] (# x 0.5))
+(define inc [x] (+ x 1))
+(define dec [x] (- x 1))
+(define abs [x] 
+    (if (>= x 0) x (* x -1))
+)
+(define ! [x] (if x false true))
+(define neg? [x] (< x 0))
+(define pos? [x] (> x 0))
+(define zero? [x] (= x 0))
+(define even? [x] (zero? x))
+(define odd? [x] (! even))
 
 (define nil? [x]
     (= x ())
 )
 
+
+; list methods
 (define range [start stop step]
     (if (< start stop)
         (cons start (range (+ start step) stop step))
@@ -24,15 +35,38 @@
 (nil? ())
 
 (define reduce [list func current]
-    (if (= list ())
+    (if (nil? list)
         current
-        (
-            do 
-            (reduce (cdr list) func (func current (car list)))
-        )
+        (reduce (cdr list) func (func current (car list)))
     )
 )
 
 (reduce (range 1 101 1) + 0)
 
 
+(define max [list]
+    (if (nil? list) 
+        currMax
+        (reduce list (fn [a b] (if (< a b) b a)) (car list))
+    )
+)
+
+(max (range 1 30 1))
+
+(define min [list]
+    (if (nil? list) 
+        currMax
+        (reduce list (fn [a b] (if (> a b) b a)) (car list))
+    )
+)
+
+(min (range 1 30 1))
+
+
+; macros
+
+(macro when [terms]
+    (list ,if (car terms) (cadr terms))
+)
+
+(when (>= 5 2) 5)

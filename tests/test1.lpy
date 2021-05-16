@@ -1,0 +1,23 @@
+;binary operators
+(+ 2 2) ;4
+(- 19 4) ;15
+(* 5 9) ;45
+(/ 3 2) ;1
+(/ 4.0 2) ;2.0
+(# 2 4) ;16
+
+
+;relational operators
+(define a 9) ;9
+(> 10 a) ; true
+(< a 4) ; false
+(>= a 9) ;true
+(<= a 7) ;false
+
+
+;logical operators
+(and true false) ;false
+(and true true true 5) ;true
+(or false false) ;false
+(or true false) ;true
+(not false) ;true

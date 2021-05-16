@@ -98,6 +98,10 @@ func (l *Lexer) getFloat(start int) Token {
 
 func (l *Lexer) getInteger() Token {
 	old := l.Position
+	if l.Char == '-' {
+		//skip first char if minus
+		l.advance()
+	}
 	//peek and not advance since advance is called at the end of scanToken, and this could cause us to jump and skip a step
 	for unicode.IsDigit(rune(l.peek())) {
 		l.advance()
@@ -149,36 +153,11 @@ func (l *Lexer) getUntil(until byte, token TokenType, after bool) Token {
 	for l.Char != until && l.Char != 0 {
 		l.advance()
 	}
-	if after {
+	if after && l.Char != 0 {
 		l.advance()
 	}
 	return newToken(token, l.Input[old:l.Position])
 }
-
-// func (l *Lexer) getQuote() Token {
-// 	old := l.Position
-// 	left := 0
-// 	end := false
-// 	if l.Char == '(' {
-// 		left = 1
-// 	}
-// 	for left >= 0 && !end {
-// 		l.advance()
-// 		if l.Char == '(' {
-// 			left += 1
-// 		} else if l.Char == ')' || (left == 0 && l.Char == ' ') {
-// 			left -= 1
-// 			if left == 0 {
-// 				//case where initially (, so set end to prevent infinite loop
-// 				end = true
-// 				//skip )
-// 				l.advance()
-// 			}
-// 		}
-// 	}
-// 	fmt.Println("here => ", l.Input[old:l.Position])
-// 	return newToken(QUOTE, l.Input[old:l.Position])
-// }
 
 func (l *Lexer) scanToken() Token {
 	//skips white space and new lines
@@ -195,9 +174,15 @@ func (l *Lexer) scanToken() Token {
 		token = newToken(RSQUARE, "]")
 	case '\'', ',':
 		token = newToken(QUOTE, "'")
+	case '-':
+		if unicode.IsDigit(rune(l.peek())) {
+			token = l.getInteger()
+		} else {
+			token = l.getSymbol()
+		}
+
 	case ';':
-		token = newToken(FALSE, "nil")
-		l.getUntil('\n', COMMENT, true)
+		token = l.getUntil('\n', COMMENT, false)
 	case '"':
 		//skip the first "
 		l.advance()
@@ -223,7 +208,9 @@ func (l *Lexer) tokenize(source string) []Token {
 	l.advance()
 	for l.Position < len(l.Input) {
 		next := l.scanToken()
-		tokens = append(tokens, next)
+		if next.Token != COMMENT {
+			tokens = append(tokens, next)
+		}
 	}
 	return tokens
 }

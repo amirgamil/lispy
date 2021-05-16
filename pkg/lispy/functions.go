@@ -3,7 +3,7 @@ package lispy
 import (
 	"fmt"
 	"log"
-	"strconv"
+	"math"
 )
 
 type LispyUserFunction func(env *Env, name string, args []Sexp) Sexp
@@ -197,13 +197,29 @@ func consHelper(a Sexp, b Sexp) SexpPair {
 
 /******* handle conditional statements *********/
 func conditionalStatement(env *Env, name string, args []Sexp) Sexp {
-	condition, okC := args[0].(SexpSymbol)
+	var condition bool
 	var toReturn Sexp
-	if !okC {
-		log.Fatal("Error interpreting condition for the if statement!")
+	switch i := args[0].(type) {
+	case SexpFloat, SexpInt:
+		condition = true
+	case SexpPair:
+		//empty list
+		if i.head == nil {
+			condition = false
+		} else {
+			condition = true
+		}
+	case SexpSymbol:
+		if i.ofType == FALSE {
+			condition = false
+		} else {
+			condition = true
+		}
+	default:
+		log.Fatal("Error trying to interpret condition for if statement")
 	}
 	//TODO: adapt this for expressions or functions specifically? Not sure how do that
-	if condition.ofType == TRUE {
+	if condition {
 		toReturn = env.evalNode(args[1])
 	} else {
 		if len(args) > 2 {
@@ -244,8 +260,7 @@ func not(env *Env, name string, args []Sexp) Sexp {
 }
 
 func logicalOperator(env *Env, name string, args []Sexp) Sexp {
-	result := true
-	tokenType := TRUE
+	result := getBoolFromTokenType(env.evalNode(args[0]))
 	if len(args) == 0 {
 		log.Fatal("Invalid syntax, pass in more than logical operator!")
 	}
@@ -254,22 +269,22 @@ func logicalOperator(env *Env, name string, args []Sexp) Sexp {
 		if len(args) > 1 {
 			log.Fatal("Error, cannot pass more than one logical operator to not!")
 		}
-		result = handleLogicalOp(name, getBoolFromTokenType(env.evalNode(args[0])))
+		result = handleLogicalOp(name, result)
 	} else {
 		if len(args) < 2 {
 			log.Fatal("Error, cannot carry out an ", name, " operator with only 1 condition!")
 		}
 		//for and, or, loop through the arguments and aggregate
-		for _, arg := range args {
-			result = handleLogicalOp(name, result, getBoolFromTokenType(env.evalNode(arg)))
+		for i := 1; i < len(args); i++ {
+			result = handleLogicalOp(name, result, getBoolFromTokenType(env.evalNode(args[i])))
 			if result == false {
 				//note we can't break early beacuse of the or operator
-				tokenType = FALSE
+				break
 			}
 		}
 	}
 
-	return SexpSymbol{ofType: tokenType, value: strconv.FormatBool(result)}
+	return getSexpSymbolFromBool(result)
 }
 
 //helper code to keep code DRY
@@ -282,6 +297,15 @@ func getBoolFromTokenType(symbol Sexp) bool {
 		return true
 	default:
 		return true
+	}
+}
+
+func getSexpSymbolFromBool(truthy bool) SexpSymbol {
+	switch truthy {
+	case true:
+		return SexpSymbol{ofType: TRUE, value: "true"}
+	default:
+		return SexpSymbol{ofType: FALSE, value: "false"}
 	}
 }
 
@@ -422,15 +446,15 @@ func handleRelOperatorSymbols(name string, x SexpSymbol, y SexpSymbol) bool {
 	var result bool
 	switch name {
 	case ">":
-		result = x.value > y.value
+		result = (x.value > y.value)
 	case ">=":
-		result = x.value >= y.value
+		result = (x.value >= y.value)
 	case "<":
-		result = x.value < y.value
+		result = (x.value < y.value)
 	case "<=":
-		result = x.value < y.value
+		result = (x.value <= y.value)
 	case "=":
-		result = x.value == y.value
+		result = (x.value == y.value)
 	}
 	return result
 }
@@ -439,15 +463,15 @@ func handleRelOperator(name string, x SexpFloat, y SexpFloat) bool {
 	var result bool
 	switch name {
 	case ">":
-		result = x > y
+		result = (x > y)
 	case ">=":
-		result = x >= y
+		result = (x >= y)
 	case "<":
-		result = x < y
+		result = (x < y)
 	case "<=":
-		result = x < y
+		result = (x <= y)
 	case "=":
-		result = x == y
+		result = (x == y)
 	}
 	return result
 }
@@ -468,8 +492,16 @@ func multiply(env *Env, name string, args []Sexp) Sexp {
 	return binaryOperation(env, "*", args)
 }
 
+func expo(env *Env, name string, args []Sexp) Sexp {
+	return binaryOperation(env, "#", args)
+}
+
 func divide(env *Env, name string, args []Sexp) Sexp {
 	return binaryOperation(env, "/", args)
+}
+
+func modulo(env *Env, name string, args []Sexp) Sexp {
+	return binaryOperation(env, "%", args)
 }
 
 func binaryOperation(env *Env, name string, args []Sexp) Sexp {
@@ -527,6 +559,10 @@ func numericOpInt(name string, x SexpInt, y SexpInt) Sexp {
 		res = x / y
 	case "*":
 		res = x * y
+	case "#":
+		res = SexpInt(math.Pow(float64(x), float64(y)))
+	case "%":
+		res = x % y
 	default:
 		log.Fatal("Error invalid operation")
 	}
@@ -548,6 +584,13 @@ func numericOpFloat(name string, x SexpFloat, y SexpFloat) Sexp {
 		res = x / y
 	case "*":
 		res = x * y
+	case "#":
+		res = SexpFloat(math.Pow(float64(x), float64(y)))
+	case "%":
+		res = SexpInt(int(x) % int(y))
+	default:
+		log.Fatal("Error invalid operation")
+
 	}
 	return res
 }
