@@ -7,7 +7,32 @@
     (list ,if (car terms) (cadr terms))
 )
 
-
-
 (when (>= 5 2) 5)
+
+(define nil? [x]
+    (= x ())
+)
+
+(define range [start stop step]
+    (if (< start stop)
+        (cons start (range (+ start step) stop step))
+        ()
+    )
+)
+
+(range 1 10 1)
+(nil? ())
+
+(define reduce [list func current]
+    (if (= list ())
+        current
+        (
+            do 
+            (reduce (cdr list) func (func current (car list)))
+        )
+    )
+)
+
+(reduce (range 1 101 1) + 0)
+
 

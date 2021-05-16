@@ -3,7 +3,6 @@ package lispy
 import (
 	"fmt"
 	"log"
-	"reflect"
 	"strconv"
 )
 
@@ -42,10 +41,17 @@ func funcDefinition(env *Env, s *SexpFunctionLiteral) Sexp {
 }
 
 func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
-
-	node, isFuncLiteral := env.store[s.name].(FunctionValue)
+	name := s.name
+	node, isFuncLiteral := env.store[name].(FunctionValue)
 	if !isFuncLiteral {
-		log.Fatal("Error, badly defined function")
+		//check if this is a reference to another function / variable
+		funcName, isVar := env.store[s.name].(Value)
+		if !isVar {
+			log.Fatal("Error, badly defined function")
+		}
+		s.name = funcName.String()
+		//don't know how deep the reference so need to recurse
+		return getFuncBinding(env, s)
 	}
 
 	//note quite critically, we need to evaluate the result of any expression arguments BEFORE we set them
@@ -56,7 +62,6 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 		//pass the args directly, macro takes in one input so we can do this directly
 		env.store[node.defn.arguments.value[0].String()] = s.arguments
 		test := env.evalNode(node.defn.body)
-		fmt.Println("here =>", test)
 		//evaluate the result of the macro transformed input
 		return env.evalNode(test)
 	}
@@ -67,10 +72,15 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 		}
 	}
 
+	//load the passed in data to the arguments of the function in the environment
+	for i, arg := range node.defn.arguments.value {
+		env.store[arg.String()] = newExprs[i]
+	}
+
 	//Call LispyUserFunction if this is a builtin function
 	//note if user-defined version exists, then it takes precedence (to ensure idea of macro functions correctly)
 	if node.defn.userfunc != nil && node.defn.body == nil {
-		return node.defn.userfunc(env, s.name, newExprs)
+		return node.defn.userfunc(env, name, newExprs)
 	}
 
 	//check we have the correct number of parameters
@@ -79,10 +89,6 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 		log.Fatal("Incorrect number of arguments passed in to ", node.defn.name)
 	}
 
-	//load the passed in data to the arguments of the function in the environment
-	for i, arg := range node.defn.arguments.value {
-		env.store[arg.String()] = newExprs[i]
-	}
 	//evaluate function
 	return env.evalNode(node.defn.body)
 }
@@ -122,8 +128,13 @@ func unwrapSList(expressions []Sexp) Sexp {
 func unwrap(arg Sexp) SexpPair {
 	pair1, isPair1 := arg.(SexpPair)
 	if !isPair1 {
-		fmt.Println(reflect.TypeOf(pair1))
-		log.Fatal("Error unwrapping for built in functions")
+		//check if we only have one item
+		switch i := arg.(type) {
+		case SexpInt, SexpFloat, SexpSymbol:
+			return SexpPair{head: SexpPair{head: i, tail: nil}, tail: nil}
+		default:
+			log.Fatal("Error unwrapping for built in functions")
+		}
 	}
 	if pair1.tail == nil {
 		return pair1
@@ -135,6 +146,9 @@ func unwrap(arg Sexp) SexpPair {
 }
 
 func car(env *Env, name string, args []Sexp) Sexp {
+	if len(args) == 0 {
+		log.Fatal("Uh oh, you need to pass an argument to car")
+	}
 	//need to unwrap twice since function call arguments wrap inner arguments in a SexpPair
 	//so we have SexpPair{head: SexpPair{...}}
 	pair1 := unwrap(args[0])
@@ -144,14 +158,21 @@ func car(env *Env, name string, args []Sexp) Sexp {
 	case SexpInt, SexpFloat:
 		return i
 	default:
-		return SexpSymbol{}
+		return nil
 	}
 }
 
 func cdr(env *Env, name string, args []Sexp) Sexp {
+	if len(args) == 0 {
+		log.Fatal("Uh oh, you need to pass an argument to car")
+	}
 	pair1 := unwrap(args[0])
 	switch i := pair1.head.(type) {
 	case SexpPair:
+		//if we cdr a one-item list, we should return an empty list
+		if i.tail == nil {
+			return SexpPair{}
+		}
 		return i.tail
 	default:
 		log.Fatal("argument 0 of cdr has wrong type!")
@@ -207,6 +228,21 @@ func printlnStatement(env *Env, name string, args []Sexp) Sexp {
 }
 
 /******* handle logical (and or not) operations *********/
+//These wrappers are necessary to map unique functions to the built-in symbols in the store
+//This becomes important when passing (built-in) functions as parameters without knowing ahead of time which
+//one will be used
+func and(env *Env, name string, args []Sexp) Sexp {
+	return logicalOperator(env, "and", args)
+}
+
+func or(env *Env, name string, args []Sexp) Sexp {
+	return logicalOperator(env, "or", args)
+}
+
+func not(env *Env, name string, args []Sexp) Sexp {
+	return logicalOperator(env, "not", args)
+}
+
 func logicalOperator(env *Env, name string, args []Sexp) Sexp {
 	result := true
 	tokenType := TRUE
@@ -263,6 +299,29 @@ func handleLogicalOp(name string, log ...bool) bool {
 }
 
 /******* handle relational operations *********/
+//These wrappers are necessary to map unique functions to the built-in symbols in the store
+//This becomes important when passing (built-in) functions as parameters without knowing ahead of time which
+//one will be used
+func equal(env *Env, name string, args []Sexp) Sexp {
+	return relationalOperator(env, "=", args)
+}
+
+func gequal(env *Env, name string, args []Sexp) Sexp {
+	return relationalOperator(env, ">=", args)
+}
+
+func lequal(env *Env, name string, args []Sexp) Sexp {
+	return relationalOperator(env, "<=", args)
+}
+
+func gthan(env *Env, name string, args []Sexp) Sexp {
+	return relationalOperator(env, ">", args)
+}
+
+func lthan(env *Env, name string, args []Sexp) Sexp {
+	return relationalOperator(env, "<", args)
+}
+
 func relationalOperator(env *Env, name string, args []Sexp) Sexp {
 	result := true
 	tokenType := TRUE
@@ -275,6 +334,10 @@ func relationalOperator(env *Env, name string, args []Sexp) Sexp {
 			result = relationalOperatorMatchFloat(name, i, curr)
 		case SexpInt:
 			result = relationalOperatorMatchInt(name, i, curr)
+		case SexpSymbol:
+			result = relationalOperatorMatchSymbol(name, i, curr)
+		case SexpPair:
+			result = relationalOperatorMatchList(name, i, curr)
 		default:
 			log.Fatal("Error, must provide only a SexpInter with a relational operator")
 		}
@@ -286,6 +349,36 @@ func relationalOperator(env *Env, name string, args []Sexp) Sexp {
 	return SexpSymbol{ofType: tokenType, value: getBoolFromString(result)}
 }
 
+func relationalOperatorMatchList(name string, x SexpPair, y Sexp) bool {
+	var res bool
+	switch i := y.(type) {
+	case SexpPair:
+		list1 := makeList(x)
+		list2 := makeList(i)
+		if len(list1) != len(list2) {
+			res = false
+		} else {
+			for i := 0; i < len(list1); i++ {
+				res = list1[i] == list2[i]
+			}
+		}
+	default:
+		res = false
+	}
+	return res
+}
+
+func relationalOperatorMatchSymbol(name string, x SexpSymbol, y Sexp) bool {
+	var res bool
+	switch i := y.(type) {
+	case SexpSymbol:
+		res = handleRelOperatorSymbols(name, x, i)
+	default:
+		res = false
+	}
+	return res
+}
+
 func relationalOperatorMatchFloat(name string, x SexpFloat, y Sexp) bool {
 	var res bool
 	switch i := y.(type) {
@@ -294,7 +387,7 @@ func relationalOperatorMatchFloat(name string, x SexpFloat, y Sexp) bool {
 	case SexpInt:
 		res = handleRelOperator(name, x, SexpFloat(i))
 	default:
-		log.Fatal("Invalid expression for relational operator!")
+		res = false
 	}
 	return res
 }
@@ -307,7 +400,7 @@ func relationalOperatorMatchInt(name string, x SexpInt, y Sexp) bool {
 	case SexpInt:
 		res = handleRelOperator(name, SexpFloat(x), SexpFloat(i))
 	default:
-		log.Fatal("Invalid expression for relational operator!")
+		res = false
 	}
 	return res
 }
@@ -323,6 +416,23 @@ func getBoolFromString(boolean bool) string {
 		log.Fatal("Error with passed in bool")
 	}
 	return res
+}
+
+func handleRelOperatorSymbols(name string, x SexpSymbol, y SexpSymbol) bool {
+	var result bool
+	switch name {
+	case ">":
+		result = x.value > y.value
+	case ">=":
+		result = x.value >= y.value
+	case "<":
+		result = x.value < y.value
+	case "<=":
+		result = x.value < y.value
+	case "=":
+		result = x.value == y.value
+	}
+	return result
 }
 
 func handleRelOperator(name string, x SexpFloat, y SexpFloat) bool {
@@ -343,6 +453,25 @@ func handleRelOperator(name string, x SexpFloat, y SexpFloat) bool {
 }
 
 /******* handle binary arithmetic operations *********/
+//These wrappers are necessary to map unique functions to the built-in symbols in the store
+//This becomes important when passing (built-in) functions as parameters without knowing ahead of time which
+//one will be used
+func add(env *Env, name string, args []Sexp) Sexp {
+	return binaryOperation(env, "+", args)
+}
+
+func minus(env *Env, name string, args []Sexp) Sexp {
+	return binaryOperation(env, "-", args)
+}
+
+func multiply(env *Env, name string, args []Sexp) Sexp {
+	return binaryOperation(env, "*", args)
+}
+
+func divide(env *Env, name string, args []Sexp) Sexp {
+	return binaryOperation(env, "/", args)
+}
+
 func binaryOperation(env *Env, name string, args []Sexp) Sexp {
 	res := args[0]
 	for i := 1; i < len(args); i++ {

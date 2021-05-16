@@ -54,10 +54,14 @@ type SexpPair struct {
 func (l SexpPair) String() string {
 	str := ""
 	close := false
+	if l.head == nil {
+		return "()"
+	}
 	if l.tail != nil {
 		str = "("
 		close = true
 	}
+
 	pair := l
 	for {
 		switch pair.tail.(type) {
@@ -75,7 +79,7 @@ func (l SexpPair) String() string {
 			str += ")"
 		}
 	} else {
-		str += pair.tail.String() + ")"
+		str += " " + pair.tail.String() + ")"
 	}
 	return str
 }

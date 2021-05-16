@@ -41,18 +41,18 @@ func returnDefinedFunctions() map[string]LispyUserFunction {
 	functions["car"] = car
 	functions["cdr"] = cdr
 	functions["cons"] = cons
-	functions["+"] = binaryOperation
-	functions["-"] = binaryOperation
-	functions["/"] = binaryOperation
-	functions["*"] = binaryOperation
-	functions["="] = relationalOperator
-	functions[">="] = relationalOperator
-	functions[">="] = relationalOperator
-	functions[">"] = relationalOperator
-	functions["<"] = relationalOperator
-	functions["and"] = logicalOperator
-	functions["or"] = logicalOperator
-	functions["not"] = logicalOperator
+	functions["+"] = add
+	functions["-"] = minus
+	functions["/"] = divide
+	functions["*"] = multiply
+	functions["="] = equal
+	functions[">="] = gequal
+	functions[">="] = lequal
+	functions[">"] = gthan
+	functions["<"] = lthan
+	functions["and"] = and
+	functions["or"] = or
+	functions["not"] = not
 	functions["println"] = printlnStatement
 	functions["list"] = createList
 	return functions
@@ -107,8 +107,6 @@ func (env *Env) evalList(n SexpPair) Sexp {
 	}
 
 	tail, isTail := n.tail.(SexpPair)
-	if isTail {
-	}
 	switch head := n.head.(type) {
 	case SexpSymbol:
 		symbol, ok := n.head.(SexpSymbol)
@@ -184,6 +182,8 @@ func (env *Env) evalList(n SexpPair) Sexp {
 		if ok {
 			toReturn = env.evalList(original)
 		} else {
+			//TODO: might need to be fixed
+			toReturn = SexpSymbol{FALSE, "false"}
 		}
 	//if it's just a list without a symbol at the front, treat it as data and return it
 	default:
