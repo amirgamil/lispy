@@ -52,7 +52,12 @@ type SexpPair struct {
 }
 
 func (l SexpPair) String() string {
-	str := "("
+	str := ""
+	close := false
+	if l.tail != nil {
+		str = "("
+		close = true
+	}
 	pair := l
 	for {
 		switch pair.tail.(type) {
@@ -65,9 +70,10 @@ func (l SexpPair) String() string {
 	}
 	//add last item
 	str += pair.head.String()
-
 	if pair.tail == nil {
-		str += ")"
+		if close {
+			str += ")"
+		}
 	} else {
 		str += pair.tail.String() + ")"
 	}
@@ -93,6 +99,7 @@ type SexpFunctionLiteral struct {
 	//when we store the arguments, will call arg.String() for each arg - may need to be fixed for some edge cases
 	arguments SexpArray
 	body      Sexp
+	macro     bool
 	//userfunc represents a native built-in implementation (which can be overrided e.g. with macros through the body argument)
 	userfunc LispyUserFunction
 }
@@ -111,7 +118,7 @@ type SexpFunctionCall struct {
 	//for now keep arguments as string, in future potentially refacto wrap in SexpIdentifierNode
 	name      string
 	arguments SexpPair
-	//used for annonymous function calls
+	//used for annonymous function calls - REMOVE, I think not being used
 	body Sexp
 }
 
@@ -186,7 +193,7 @@ func getName(token Token) string {
 }
 
 //parses a function literal
-func parseFunctionLiteral(tokens []Token, name string) (Sexp, int, error) {
+func parseFunctionLiteral(tokens []Token, name string, macro bool) (Sexp, int, error) {
 	idx := 0
 	var args SexpArray
 	var add int
@@ -212,7 +219,7 @@ func parseFunctionLiteral(tokens []Token, name string) (Sexp, int, error) {
 	}
 	idx += addBlock
 	//entire function include define was enclosed in (), note DON'T SKIP 1 otherwise may read code outside function
-	return SexpFunctionLiteral{name: name, arguments: args, body: body, userfunc: nil}, idx + 1, nil
+	return SexpFunctionLiteral{name: name, arguments: args, body: body, userfunc: nil, macro: macro}, idx + 1, nil
 }
 
 //parses a function call
@@ -220,20 +227,30 @@ func parseFunctionCall(tokens []Token, body Sexp) (Sexp, int, error) {
 	idx := 0
 	name := tokens[0].Literal
 	idx += 1
-	args, add, err := parseList(tokens[idx:])
-	//is there a better way than to type assert?
-	origArgs, isArgs := args.(SexpPair)
-	if !isArgs {
-		log.Fatal("Error parsing function parameters")
+	var origArgs SexpPair
+	//if there are no parameters
+	if tokens[idx].Token == RPAREN {
+		origArgs = SexpPair{}
+		idx++
+	} else {
+		args, add, err := parseList(tokens[idx:])
+		//is there a better way than to type assert?
+		argsPair, isArgs := args.(SexpPair)
+		if !isArgs {
+			fmt.Println(origArgs)
+			log.Fatal("Error parsing function parameters")
+		}
+		origArgs = argsPair
+		if err != nil {
+			return nil, 0, err
+		}
+		idx += add
 	}
-	if err != nil {
-		return nil, 0, err
-	}
-	idx += add
 	return SexpFunctionCall{name: name, arguments: origArgs, body: nil}, idx, nil
 }
 
 //parses a single expression (list or non-list)
+//TODO: clean all the unnecessary extra adds
 func parseExpr(tokens []Token) (Sexp, int, error) {
 	idx := 0
 	var expr Sexp
@@ -247,7 +264,7 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 			//skip define token
 			idx++
 			name := getName(tokens[idx])
-			expr, add, err = parseFunctionLiteral(tokens[idx+1:], name)
+			expr, add, err = parseFunctionLiteral(tokens[idx+1:], name, false)
 			if err != nil {
 				return nil, 0, err
 			}
@@ -257,6 +274,14 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 			//POSSIBLE FEATURE AMMENDMENT: If I add local binding via let similar to Clojure, will be added here
 			idx++
 		}
+	case MACRO:
+		idx++
+		name := getName(tokens[idx])
+		expr, add, err = parseFunctionLiteral(tokens[idx+1:], name, true)
+		if err != nil {
+			return nil, 0, err
+		}
+		idx += add
 	case LPAREN:
 		idx++
 		//check if anonymous function
@@ -265,7 +290,7 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 			idx++
 			//give anonymous functions the same name because by definition, should not be able to refer
 			//to them after they have been defined (designed to execute there and then)
-			expr, add, err = parseFunctionLiteral(tokens[idx:], "fn")
+			expr, add, err = parseFunctionLiteral(tokens[idx:], "fn", false)
 		} else if idx < len(tokens) && tokens[idx].Token == SYMBOL && tokens[idx].Token != DEFINE {
 			//check if this is a function call i.e. the next token is a symbol
 			expr, add, err = parseFunctionCall(tokens[idx:], nil)
@@ -275,6 +300,7 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 			add = 1
 		} else {
 			expr, add, err = parseList(tokens[idx:])
+			fmt.Println(expr)
 		}
 		idx += add
 		if err != nil {
@@ -300,7 +326,7 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 		if errorL != nil {
 			log.Fatal("Error parsing quote!")
 		}
-		expr = MakeList([]Sexp{SexpSymbol{ofType: QUOTE, value: "'"}, nextExpr})
+		expr = makeSList([]Sexp{SexpSymbol{ofType: QUOTE, value: "'"}, nextExpr})
 		idx += toAdd
 	//eventually refactor to handle other symbols like identifiers
 	//create a map with all of these operators pre-stored and just get, or default, passing in tokentype to check if it exists
@@ -314,12 +340,13 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 	return expr, idx, nil
 }
 
-func MakeList(expressions []Sexp) Sexp {
+//helper function to convert list of Sexp to list of cons cells
+func makeSList(expressions []Sexp) Sexp {
 	if len(expressions) == 0 {
 		return nil
 	}
 
-	return consHelper(expressions[0], MakeList(expressions[1:]))
+	return consHelper(expressions[0], makeSList(expressions[1:]))
 }
 
 /*

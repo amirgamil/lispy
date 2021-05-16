@@ -1,6 +1,7 @@
 package lispy
 
 import (
+	"fmt"
 	"log"
 	"strings"
 )
@@ -53,6 +54,7 @@ func returnDefinedFunctions() map[string]LispyUserFunction {
 	functions["or"] = logicalOperator
 	functions["not"] = logicalOperator
 	functions["println"] = printlnStatement
+	functions["list"] = createList
 	return functions
 }
 
@@ -105,7 +107,8 @@ func (env *Env) evalList(n SexpPair) Sexp {
 	}
 
 	tail, isTail := n.tail.(SexpPair)
-
+	if isTail {
+	}
 	switch head := n.head.(type) {
 	case SexpSymbol:
 		symbol, ok := n.head.(SexpSymbol)
@@ -181,7 +184,6 @@ func (env *Env) evalList(n SexpPair) Sexp {
 		if ok {
 			toReturn = env.evalList(original)
 		} else {
-			log.Fatal("error interpreting nested list")
 		}
 	//if it's just a list without a symbol at the front, treat it as data and return it
 	default:
@@ -223,6 +225,7 @@ func (env *Env) evalNode(node Sexp) Sexp {
 		}
 	default:
 		//TODO: fix this later
+		fmt.Println(node)
 		log.Fatal("error unexpected node")
 	}
 	return toReturn

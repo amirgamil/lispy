@@ -1,20 +1,13 @@
-(define outer [x]
-    (do 
-        (define inner [x]
-            (x)
-        )
-        (inner 5)
-        (x)
-    )
+(define caar [x] (car (car x)))
+(define cadr [x] (car (cdr x)))
+(define cdar [x] (cdr (car x)))
+(define cddr [x] (cdr (cdr x)))
+
+(macro when [terms]
+    (list ,if (car terms) (cadr terms))
 )
 
-(outer 3)
-(outer 3)
 
 
+(when (>= 5 2) 5)
 
-
-
-(def fib [n] (if (= n 0) 1 (* n 2)))
-
-(define outer [x] (do (define inner [x] (+ x 2 )) (inner 2)))

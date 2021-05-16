@@ -9,10 +9,6 @@ import (
 
 type LispyUserFunction func(env *Env, name string, args []Sexp) Sexp
 
-//turns this into something that can take an annonymous inner function and return LispyUserFunction?
-//or FunctionValue to store in the environment?
-// func makeLispyFunc()
-
 /******* handle definitions *********/
 //create new variable binding
 func varDefinition(env *Env, key string, args []Sexp) Sexp {
@@ -46,35 +42,48 @@ func funcDefinition(env *Env, s *SexpFunctionLiteral) Sexp {
 }
 
 func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
-	//note quite critically, we need to evaluate the result of any expression arguments BEFORE we set them
-	//(before any old values get overwritten)
-	newExprs := make([]Sexp, 0)
-	for _, toEvaluate := range makeList(s.arguments) {
-		newExprs = append(newExprs, env.evalNode(toEvaluate))
-	}
 
 	node, isFuncLiteral := env.store[s.name].(FunctionValue)
 	if !isFuncLiteral {
 		log.Fatal("Error, badly defined function")
 	}
+
+	//note quite critically, we need to evaluate the result of any expression arguments BEFORE we set them
+	//(before any old values get overwritten)
+	newExprs := make([]Sexp, 0)
+
+	if node.defn.macro {
+		//pass the args directly, macro takes in one input so we can do this directly
+		env.store[node.defn.arguments.value[0].String()] = s.arguments
+		test := env.evalNode(node.defn.body)
+		fmt.Println("here =>", test)
+		//evaluate the result of the macro transformed input
+		return env.evalNode(test)
+	}
+	//otherwise not a macro, so evaluate all of the arguments before calling the function
+	if s.arguments.head != nil {
+		for _, toEvaluate := range makeList(s.arguments) {
+			newExprs = append(newExprs, env.evalNode(toEvaluate))
+		}
+	}
+
 	//Call LispyUserFunction if this is a builtin function
 	//note if user-defined version exists, then it takes precedence (to ensure idea of macro functions correctly)
 	if node.defn.userfunc != nil && node.defn.body == nil {
 		return node.defn.userfunc(env, s.name, newExprs)
 	}
+
 	//check we have the correct number of parameters
+	//only do this if not a macro
 	if len(node.defn.arguments.value) != len(newExprs) {
-		log.Fatal("Incorrect number of arguments passed in!")
+		log.Fatal("Incorrect number of arguments passed in to ", node.defn.name)
 	}
+
 	//load the passed in data to the arguments of the function in the environment
 	for i, arg := range node.defn.arguments.value {
 		env.store[arg.String()] = newExprs[i]
 	}
-	// //evaluate user-defined function
-	// //if anonynomous inner function, evaluate it
-	// if s.body != nil {
-	// 	return env.evalNode(s.body)
-	// }
+	//evaluate function
 	return env.evalNode(node.defn.body)
 }
 
@@ -84,6 +93,28 @@ func makeUserFunction(name string, function LispyUserFunction) FunctionValue {
 	sfunc.name = name
 	sfunc.userfunc = function
 	return FunctionValue{defn: &sfunc}
+}
+
+/******* create list *********/
+func createList(env *Env, name string, args []Sexp) Sexp {
+	return unwrapSList(args)
+}
+
+//helper function to convert list of args into list of cons cells
+//this method is very similar to makeSList, the only difference is that it unwraps quotes
+//so that they are no longer stored as SexpPair{head: quote, tail: actual symbol}
+func unwrapSList(expressions []Sexp) Sexp {
+	if len(expressions) == 0 {
+		return nil
+	}
+	switch i := expressions[0].(type) {
+	case SexpPair:
+		return consHelper(i.head, unwrapSList(expressions[1:]))
+
+	}
+
+	return consHelper(expressions[0], unwrapSList(expressions[1:]))
+
 }
 
 /******* cars, cons, cdr **********/
