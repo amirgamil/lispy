@@ -15,12 +15,12 @@
 (define neg? [x] (< x 0))
 (define pos? [x] (> x 0))
 (define zero? [x] (= x 0))
-(define even? [x] (zero? x))
+(define even? [x] (zero? (% x 2)))
 (define odd? [x] (! even))
-
 (define nil? [x]
     (= x ())
 )
+(define square [x] (* x x))
 
 
 ; list methods
@@ -31,7 +31,6 @@
     )
 )
 
-(range 1 10 1)
 (nil? ())
 
 (define reduce [list func current]
@@ -41,8 +40,6 @@
     )
 )
 
-(reduce (range 1 101 1) + 0)
-
 
 (define max [list]
     (if (nil? list) 
@@ -51,7 +48,6 @@
     )
 )
 
-(max (range 1 30 1))
 
 (define min [list]
     (if (nil? list) 
@@ -60,7 +56,17 @@
     )
 )
 
-(min (range 1 30 1))
+; defines a list from 0...x-1 
+(define seq [x] (range 0 x 1))
+
+(define map [list func] 
+    (if (nil? list)
+        ()
+        (cons (func (car list)) (map (cdr list) func))
+    )
+)
+
+
 
 
 ; macros
@@ -69,4 +75,6 @@
     (list ,if (car terms) (cadr terms))
 )
 
-(when (>= 5 2) 5)
+(macro cond [terms]
+    
+)
