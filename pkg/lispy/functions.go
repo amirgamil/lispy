@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"reflect"
 )
 
 type LispyUserFunction func(env *Env, name string, args []Sexp) Sexp
@@ -48,7 +47,7 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 		//check if this is a reference to another function / variable
 		funcName, isVar := env.store[s.name].(Value)
 		if !isVar {
-			log.Fatal("Error, badly defined function")
+			log.Fatal("Error, badly ", s.name, " defined function")
 		}
 		s.name = funcName.String()
 		//don't know how deep the reference so need to recurse
@@ -62,9 +61,10 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 	if node.defn.macro {
 		//pass the args directly, macro takes in one input so we can do this directly
 		env.store[node.defn.arguments.value[0].String()] = s.arguments
-		test := env.evalNode(node.defn.body)
+		macroRes := env.evalNode(node.defn.body)
+		fmt.Println(macroRes)
 		//evaluate the result of the macro transformed input
-		return env.evalNode(test)
+		return env.evalNode(macroRes)
 	}
 	//otherwise not a macro, so evaluate all of the arguments before calling the function
 	if s.arguments.head != nil {
@@ -138,8 +138,6 @@ func unwrap(arg Sexp) SexpPair {
 			log.Fatal("Error unwrapping for built in functions")
 		}
 	}
-	fmt.Println(pair1.head)
-	fmt.Println(reflect.TypeOf(pair1))
 	if pair1.tail == nil {
 		return pair1
 	} else {

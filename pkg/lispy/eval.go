@@ -75,15 +75,28 @@ func InitState() *Env {
 func (env *Env) evalSymbol(s SexpSymbol, args []Sexp) Sexp {
 	switch s.ofType {
 	case SYMBOL:
-		return getVarBinding(env, s.value, args)
+		//if no argument then it's a variable
+		if len(args) == 0 {
+			return getVarBinding(env, s.value, args)
+		}
+		//otherwise assume this is a function call
+		argList, isList := args[0].(SexpPair)
+		if !isList {
+			log.Fatal("Error trying to parse arguments for function call")
+		}
+		funcCall := SexpFunctionCall{name: s.value, arguments: argList}
+		return env.evalFunctionCall(&funcCall)
+
 	case TRUE, FALSE, STRING:
 		return s
 	case IF:
 		return conditionalStatement(env, s.value, args)
 	case DEFINE:
 		return varDefinition(env, args[0].String(), args[1:])
+	default:
+		log.Fatal("Uh oh, weird symbol my dude")
+		return nil
 	}
-	return nil
 }
 
 func (env *Env) evalFunctionLiteral(s *SexpFunctionLiteral) Sexp {
@@ -162,7 +175,7 @@ func (env *Env) evalList(n SexpPair) Sexp {
 				break
 			}
 		default:
-			toReturn = env.evalSymbol(symbol, []Sexp{})
+			toReturn = env.evalSymbol(symbol, []Sexp{tail})
 		}
 	case SexpFunctionLiteral:
 		//anonymous function, so handle differently

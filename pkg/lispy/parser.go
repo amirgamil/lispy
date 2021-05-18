@@ -192,6 +192,19 @@ func getName(token Token) string {
 	return name
 }
 
+func parseParameterArray(tokens []Token) (SexpArray, int, error) {
+	//assume we're given tokens including [, so skip [
+	idx := 1
+	//parse arguments first
+	args, add, err := parseArray(tokens[idx:])
+	if err != nil {
+		log.Fatal("Error parsing parameter array")
+	}
+	idx += add
+	return args, idx, err
+
+}
+
 //parses a function literal
 func parseFunctionLiteral(tokens []Token, name string, macro bool) (Sexp, int, error) {
 	idx := 0
@@ -199,13 +212,8 @@ func parseFunctionLiteral(tokens []Token, name string, macro bool) (Sexp, int, e
 	var add int
 	var err error
 	if tokens[idx].Token == LSQUARE {
-		//skip the [ and go to the next character
-		idx += 1
 		//parse arguments first
-		args, add, err = parseArray(tokens[idx:])
-		if err != nil {
-			return nil, 0, err
-		}
+		args, add, _ = parseParameterArray(tokens[idx:])
 		idx += add
 	} else {
 		//means we have a lambda expression here
@@ -282,10 +290,14 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 			return nil, 0, err
 		}
 		idx += add
+	case LSQUARE:
+		//if we reach here, then parsing a quote with square bracjets
+		expr, add, _ = parseParameterArray(tokens[idx:])
+		idx += add
 	case LPAREN:
 		idx++
 		//check if anonymous function
-		if idx+1 < len(tokens) && tokens[idx].Token == FN && tokens[idx+1].Token == LSQUARE {
+		if idx+1 < len(tokens) && tokens[idx].Literal == "fn" && tokens[idx+1].Token == LSQUARE {
 			//skip fn
 			idx++
 			//give anonymous functions the same name because by definition, should not be able to refer

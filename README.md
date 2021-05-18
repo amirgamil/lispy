@@ -75,7 +75,7 @@ lispy> (define doMultipleThings [x]
         )
 
 ```
-Recursion is also supported in lispy so we can define a recursive function like this
+Naturally, recursion follows from this definition nicely, so we can define a recursive function like this
 ```
 lispy> (define fact [n] (if (= n 0) 1 (* n fact(- n 1))))
 #user/fact
@@ -83,5 +83,15 @@ lispy> (fact 4)
 24
 ```
 
+#### Quotes
+Define quotes in Lispy with the `'` 
+```
+lispy> '(1 2 3)
+(1 2 3)
+lispy> 'atom
+atom
+```
 
 Remember () = call to function, so when passing to cons, car, cdr, make sure you have a quote
+
+
