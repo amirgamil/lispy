@@ -34,7 +34,6 @@ const COMMENT TokenType = "COMMENT"
 
 const ID TokenType = "ID"
 const IF TokenType = "IF"
-const FN TokenType = "FN"
 const DEFINE TokenType = "DEFINE"
 const TRUE TokenType = "TRUE"
 const FALSE TokenType = "FALSE"
@@ -131,8 +130,6 @@ func (l *Lexer) getSymbol() Token {
 		token = newToken(FALSE, "false")
 	case "do":
 		token = newToken(DO, "do")
-	case "fn":
-		token = newToken(FN, "fn")
 	case "macro":
 		token = newToken(MACRO, "macro")
 	//will add others later

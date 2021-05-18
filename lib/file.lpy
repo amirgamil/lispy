@@ -75,6 +75,16 @@
     (list ,if (car terms) (cadr terms))
 )
 
-(macro cond [terms]
-    
+(macro let [terms]
+    (do
+        (define name (car terms))
+        (define val (cdr terms))
+        (list 
+            (list ,fn (list name) val)
+            val
+        )
+        
+    )
 )
+
+(let a 5)
