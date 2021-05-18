@@ -132,6 +132,7 @@ func (env *Env) evalList(n SexpPair) Sexp {
 			if !isTail {
 				log.Fatal("Error trying to interpret quote")
 			}
+			//don't evaluate the expression
 			toReturn = tail
 		case IF:
 			if !isTail {

@@ -52,14 +52,9 @@ type SexpPair struct {
 }
 
 func (l SexpPair) String() string {
-	str := ""
-	close := false
+	str := "("
 	if l.head == nil {
 		return "()"
-	}
-	if l.tail != nil {
-		str = "("
-		close = true
 	}
 
 	pair := l
@@ -75,9 +70,7 @@ func (l SexpPair) String() string {
 	//add last item
 	str += pair.head.String()
 	if pair.tail == nil {
-		if close {
-			str += ")"
-		}
+		str += ")"
 	} else {
 		str += " " + pair.tail.String() + ")"
 	}
@@ -127,9 +120,12 @@ type SexpFunctionCall struct {
 }
 
 func (f SexpFunctionCall) String() string {
-	return fmt.Sprintf("Function call (%s) on (%s)",
+	args := f.arguments.String()
+	//Yes this is not ideal
+	args = args[1 : len(args)-1]
+	return fmt.Sprintf("%s %s",
 		f.name,
-		f.arguments.String())
+		args)
 }
 
 /********** PARSING CODE ****************/
@@ -298,6 +294,8 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 		} else if idx < len(tokens) && tokens[idx].Token == SYMBOL && tokens[idx].Token != DEFINE {
 			//check if this is a function call i.e. the next token is a symbol
 			expr, add, err = parseFunctionCall(tokens[idx:], nil)
+			//required to maintain hiearachy when switching between data and code
+			expr = SexpPair{head: expr, tail: nil}
 		} else if tokens[idx].Token == RPAREN {
 			//check for empty list
 			expr = SexpPair{head: nil, tail: nil}

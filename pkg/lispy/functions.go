@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"reflect"
 )
 
 type LispyUserFunction func(env *Env, name string, args []Sexp) Sexp
@@ -124,6 +125,7 @@ func unwrapSList(expressions []Sexp) Sexp {
 }
 
 /******* cars, cons, cdr **********/
+
 //helper function to unwrap quote data
 func unwrap(arg Sexp) SexpPair {
 	pair1, isPair1 := arg.(SexpPair)
@@ -136,6 +138,8 @@ func unwrap(arg Sexp) SexpPair {
 			log.Fatal("Error unwrapping for built in functions")
 		}
 	}
+	fmt.Println(pair1.head)
+	fmt.Println(reflect.TypeOf(pair1))
 	if pair1.tail == nil {
 		return pair1
 	} else {
