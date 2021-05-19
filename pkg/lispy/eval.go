@@ -292,7 +292,7 @@ func Eval(nodes []Sexp, env *Env) []string {
 
 //method which exposes eval to other packages which call this as an API to get a result
 func EvalSource(source string) ([]string, error) {
-	tokens := Read(reader)
+	tokens := Read(strings.NewReader(source))
 	ast, err := Parse(tokens)
 	if err != nil {
 		return nil, errors.New("Error parsing!")
