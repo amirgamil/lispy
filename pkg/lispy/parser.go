@@ -192,6 +192,7 @@ func getName(token Token) string {
 	return name
 }
 
+//parsing
 func parseParameterArray(tokens []Token) (SexpArray, int, error) {
 	//assume we're given tokens including [, so skip [
 	idx := 1
@@ -230,32 +231,32 @@ func parseFunctionLiteral(tokens []Token, name string, macro bool) (Sexp, int, e
 	return SexpFunctionLiteral{name: name, arguments: args, body: body, userfunc: nil, macro: macro}, idx + 1, nil
 }
 
-//parses a function call
-func parseFunctionCall(tokens []Token, body Sexp) (Sexp, int, error) {
-	idx := 0
-	name := tokens[0].Literal
-	idx += 1
-	var origArgs SexpPair
-	//if there are no parameters
-	if tokens[idx].Token == RPAREN {
-		origArgs = SexpPair{}
-		idx++
-	} else {
-		args, add, err := parseList(tokens[idx:])
-		//is there a better way than to type assert?
-		argsPair, isArgs := args.(SexpPair)
-		if !isArgs {
-			fmt.Println(origArgs)
-			log.Fatal("Error parsing function parameters")
-		}
-		origArgs = argsPair
-		if err != nil {
-			return nil, 0, err
-		}
-		idx += add
-	}
-	return SexpFunctionCall{name: name, arguments: origArgs, body: nil}, idx, nil
-}
+//parses a function call - TO BE REMOVED, keep now in case
+// func parseFunctionCall(tokens []Token, body Sexp) (Sexp, int, error) {
+// 	idx := 0
+// 	name := tokens[0].Literal
+// 	idx += 1
+// 	var origArgs SexpPair
+// 	//if there are no parameters
+// 	if tokens[idx].Token == RPAREN {
+// 		origArgs = SexpPair{}
+// 		idx++
+// 	} else {
+// 		args, add, err := parseList(tokens[idx:])
+// 		//is there a better way than to type assert?
+// 		argsPair, isArgs := args.(SexpPair)
+// 		if !isArgs {
+// 			fmt.Println(origArgs)
+// 			log.Fatal("Error parsing function parameters")
+// 		}
+// 		origArgs = argsPair
+// 		if err != nil {
+// 			return nil, 0, err
+// 		}
+// 		idx += add
+// 	}
+// 	return SexpFunctionCall{name: name, arguments: origArgs, body: nil}, idx, nil
+// }
 
 //parses a single expression (list or non-list)
 //TODO: clean all the unnecessary extra adds
@@ -268,9 +269,9 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 	switch tokens[idx].Token {
 	case DEFINE:
 		//look ahead one to check if it's a function or just data-binding
-		if idx+2 < len(tokens) && (tokens[idx+2].Token == LSQUARE || tokens[idx+2].Token == LPAREN) {
-			//skip define token
+		if idx+2 < len(tokens) && (tokens[idx+2].Token == LSQUARE) {
 			idx++
+			//skip define token
 			name := getName(tokens[idx])
 			expr, add, err = parseFunctionLiteral(tokens[idx+1:], name, false)
 			if err != nil {
@@ -291,7 +292,7 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 		}
 		idx += add
 	case LSQUARE:
-		//if we reach here, then parsing a quote with square bracjets
+		//if we reach here, then parsing a quote with square brackets
 		expr, add, _ = parseParameterArray(tokens[idx:])
 		idx += add
 	case LPAREN:
@@ -303,11 +304,6 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 			//give anonymous functions the same name because by definition, should not be able to refer
 			//to them after they have been defined (designed to execute there and then)
 			expr, add, err = parseFunctionLiteral(tokens[idx:], "fn", false)
-		} else if idx < len(tokens) && tokens[idx].Token == SYMBOL && tokens[idx].Token != DEFINE {
-			//check if this is a function call i.e. the next token is a symbol
-			expr, add, err = parseFunctionCall(tokens[idx:], nil)
-			//required to maintain hiearachy when switching between data and code
-			expr = SexpPair{head: expr, tail: nil}
 		} else if tokens[idx].Token == RPAREN {
 			//check for empty list
 			expr = SexpPair{head: nil, tail: nil}
@@ -347,7 +343,7 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 		expr = SexpSymbol{ofType: tokens[idx].Token, value: tokens[idx].Literal}
 		idx++
 	default:
-		fmt.Println(tokens[idx])
+		fmt.Println(tokens[idx:])
 		log.Fatal("error parsing")
 	}
 	return expr, idx, nil

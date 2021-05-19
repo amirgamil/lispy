@@ -1,4 +1,23 @@
+(define caar [x] (car (car x)))
+(define cadr [x] (car (cdr x)))
+(define cdar [x] (cdr (car x)))
+(define cddr [x] (cdr (cdr x)))
 
 
-(abs 6)
-(abs -6)
+(macro let [terms]
+    (do
+        (define decl (car terms))
+        (define declname (car decl))
+        (define declval (cdr decl))
+        (define body (cadr terms))
+        (list 
+            (list 'fn [declname] body)
+            declval
+        )
+        
+    )
+)
+
+(let (a 5)
+    (+ a 2)
+)

@@ -3,6 +3,7 @@ package lispy
 import (
 	"fmt"
 	"log"
+	"reflect"
 	"strings"
 )
 
@@ -74,6 +75,12 @@ func InitState() *Env {
 
 func (env *Env) evalSymbol(s SexpSymbol, args []Sexp) Sexp {
 	switch s.ofType {
+	case TRUE, FALSE, STRING:
+		return s
+	case IF:
+		return conditionalStatement(env, s.value, args)
+	case DEFINE:
+		return varDefinition(env, args[0].String(), args[1:])
 	case SYMBOL:
 		//if no argument then it's a variable
 		if len(args) == 0 {
@@ -84,15 +91,20 @@ func (env *Env) evalSymbol(s SexpSymbol, args []Sexp) Sexp {
 		if !isList {
 			log.Fatal("Error trying to parse arguments for function call")
 		}
+		//check if this is an anonymous function the macro called
+		if s.value == "fn" {
+			params, isArray := argList.head.(SexpArray)
+			if !isArray {
+				//is there a scenario in which we can have an anon function with no parameters?
+				//if so, change this
+				log.Fatal("Error parsing anonymous function in macro expansion!")
+			}
+			//evaluate ever arg
+			anonFunc := SexpFunctionLiteral{name: "fn", arguments: params, body: argList.tail, userfunc: nil, macro: false}
+			return anonFunc
+		}
 		funcCall := SexpFunctionCall{name: s.value, arguments: argList}
 		return env.evalFunctionCall(&funcCall)
-
-	case TRUE, FALSE, STRING:
-		return s
-	case IF:
-		return conditionalStatement(env, s.value, args)
-	case DEFINE:
-		return varDefinition(env, args[0].String(), args[1:])
 	default:
 		log.Fatal("Uh oh, weird symbol my dude")
 		return nil
@@ -201,6 +213,13 @@ func (env *Env) evalList(n SexpPair) Sexp {
 		original, ok := n.head.(SexpPair)
 		if ok {
 			toReturn = env.evalList(original)
+			//if this is an anon function from a macro, need to set it up as such
+			funcLiteral, isFuncLiteral := toReturn.(SexpFunctionLiteral)
+			if isFuncLiteral && funcLiteral.name == "fn" {
+				//this is a function call so we can use the code above under case SexpFunctionLiteral
+				//by artificially constructing a list as such
+				toReturn = env.evalList(SexpPair{head: funcLiteral, tail: n.tail})
+			}
 		} else {
 			//TODO: might need to be fixed
 			toReturn = SexpSymbol{FALSE, "false"}
@@ -215,7 +234,7 @@ func (env *Env) evalList(n SexpPair) Sexp {
 //wrapper for evaluating an individual Sexp node in our AST
 func (env *Env) evalNode(node Sexp) Sexp {
 	var toReturn Sexp
-	switch node.(type) {
+	switch i := node.(type) {
 	case SexpPair:
 		//Assert type since ast is composed of generic Sexp interface
 		original, ok := node.(SexpPair)
@@ -243,9 +262,16 @@ func (env *Env) evalNode(node Sexp) Sexp {
 		} else {
 			log.Fatal("Error evaluating function call")
 		}
+	case SexpArray:
+		//necessary for handling parameters in anon functions in macros
+		for index := range i.value {
+			i.value[index] = env.evalNode(i.value[index])
+		}
+		toReturn = i
 	default:
 		//TODO: fix this later
 		fmt.Println(node)
+		fmt.Println(reflect.TypeOf(node))
 		log.Fatal("error unexpected node")
 	}
 	return toReturn

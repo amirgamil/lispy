@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"reflect"
 )
 
 type LispyUserFunction func(env *Env, name string, args []Sexp) Sexp
@@ -13,7 +14,7 @@ type LispyUserFunction func(env *Env, name string, args []Sexp) Sexp
 func varDefinition(env *Env, key string, args []Sexp) Sexp {
 	var value Sexp
 	for _, arg := range args {
-		value = arg
+		value = env.evalNode(arg)
 		env.store[key] = value
 	}
 	return value
@@ -47,7 +48,7 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 		//check if this is a reference to another function / variable
 		funcName, isVar := env.store[s.name].(Value)
 		if !isVar {
-			log.Fatal("Error, badly ", s.name, " defined function")
+			log.Fatal("Error, badly defined function trying to be called: ", s.name)
 		}
 		s.name = funcName.String()
 		//don't know how deep the reference so need to recurse
@@ -62,7 +63,7 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 		//pass the args directly, macro takes in one input so we can do this directly
 		env.store[node.defn.arguments.value[0].String()] = s.arguments
 		macroRes := env.evalNode(node.defn.body)
-		fmt.Println(macroRes)
+		fmt.Println("macro => ", macroRes)
 		//evaluate the result of the macro transformed input
 		return env.evalNode(macroRes)
 	}
@@ -104,7 +105,8 @@ func makeUserFunction(name string, function LispyUserFunction) FunctionValue {
 
 /******* create list *********/
 func createList(env *Env, name string, args []Sexp) Sexp {
-	return unwrapSList(args)
+	i := unwrapSList(args)
+	return i
 }
 
 //helper function to convert list of args into list of cons cells
@@ -116,10 +118,10 @@ func unwrapSList(expressions []Sexp) Sexp {
 	}
 	switch i := expressions[0].(type) {
 	case SexpPair:
-		return consHelper(i.head, unwrapSList(expressions[1:]))
-
+		if i.tail == nil {
+			return consHelper(i.head, unwrapSList(expressions[1:]))
+		}
 	}
-
 	return consHelper(expressions[0], unwrapSList(expressions[1:]))
 
 }
@@ -131,6 +133,7 @@ func unwrap(arg Sexp) SexpPair {
 	pair1, isPair1 := arg.(SexpPair)
 	if !isPair1 {
 		//check if we only have one item
+		//some weird behavior with (car 1 2 3) not sure if needs to change
 		switch i := arg.(type) {
 		case SexpInt, SexpFloat, SexpSymbol:
 			return SexpPair{head: SexpPair{head: i, tail: nil}, tail: nil}
@@ -177,6 +180,7 @@ func cdr(env *Env, name string, args []Sexp) Sexp {
 		}
 		return i.tail
 	default:
+		fmt.Println(reflect.TypeOf(i))
 		log.Fatal("argument 0 of cdr has wrong type!")
 	}
 	return nil
