@@ -1,6 +1,7 @@
 package lispy
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"reflect"
@@ -287,6 +288,17 @@ func Eval(nodes []Sexp, env *Env) []string {
 		}
 	}
 	return res
+}
+
+//method which exposes eval to other packages which call this as an API to get a result
+func EvalSource(source string) ([]string, error) {
+	tokens := Read(reader)
+	ast, err := Parse(tokens)
+	if err != nil {
+		return nil, errors.New("Error parsing!")
+	}
+	env := InitState()
+	return Eval(ast, env), nil
 }
 
 // func listLen(expr Sexp) int {

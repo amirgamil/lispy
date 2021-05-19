@@ -91,9 +91,3 @@ func main() {
 		repl(file, env)
 	}
 }
-
-//method which exposes eval to other packages which call this as an API to get a result
-func Eval(source string) ([]string, error) {
-	env := lispy.InitState()
-	return eval(read(strings.NewReader(source)), env), nil
-}
