@@ -83,7 +83,6 @@ lispy> (fact 4)
 24
 ```
 
-<<<<<<< HEAD
 Note, to differentiate functions from variables since both use the `define` keyword, you should always have square brackets `[]` after the function name even if it takes no parameters. 
 ```
 lispy> (define noParams [] 
@@ -103,10 +102,6 @@ lispy> (define manyParams [a b c]
 
 ```
 
-
-
-=======
->>>>>>> 8f267c2ed9120e27065bc963ea091b5d9acc37e1
 #### Quotes
 Define quotes in Lispy with the `'` 
 ```
