@@ -83,13 +83,21 @@
         (define declval (cdr decl))
         (define body (cdr terms))
         (list 
-            ;issue is that declname is being rendered as a symbol which we then have to evaluate - causing problems with nesting
-            (list 'fn (list declname) body)
+            (list 'fn [declname] body)
             declval
         )
         
     )
 )
 
-(let (a 5) (+ a 5))
+(let (a 5) 
+    (let (b 6)
+        (let (c 7)
+            (+ a b c)
+        )
+    )
+)
+
+
+
 

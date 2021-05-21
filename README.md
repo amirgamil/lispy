@@ -10,10 +10,9 @@ Spec
 - [x] Reading Lispy code from a file
 - [x] Functions
     - [x] Thoroughly tested
+- [x] Local bindings via let
 - [ ] Support for strings
-- [ ] Local bindings via let
 - [ ] Tail-optimized recursion
-- [ ] Parsing multiple lines in the REPL
 
 
 - Define new bindings to variables and functions with a universal keyword

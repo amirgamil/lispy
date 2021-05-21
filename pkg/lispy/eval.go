@@ -100,8 +100,9 @@ func (env *Env) evalSymbol(s SexpSymbol, args []Sexp) Sexp {
 				//if so, change this
 				log.Fatal("Error parsing anonymous function in macro expansion!")
 			}
+			newParams := params
 			//evaluate ever arg
-			anonFunc := SexpFunctionLiteral{name: "fn", arguments: params, body: argList.tail, userfunc: nil, macro: false}
+			anonFunc := SexpFunctionLiteral{name: "fn", arguments: newParams, body: argList.tail, userfunc: nil, macro: false}
 			return anonFunc
 		}
 		funcCall := SexpFunctionCall{name: s.value, arguments: argList}
@@ -265,10 +266,13 @@ func (env *Env) evalNode(node Sexp) Sexp {
 		}
 	case SexpArray:
 		//necessary for handling parameters in anon functions in macros
+		//note we do this because we CAN'T CHANGE ORIGINAL FUNCTION DEFINITION
+		//would cause problems with recursion
+		new := make([]Sexp, 0)
 		for index := range i.value {
-			i.value[index] = env.evalNode(i.value[index])
+			new = append(new, env.evalNode(i.value[index]))
 		}
-		toReturn = i
+		toReturn = SexpArray{ofType: ARRAY, value: new}
 	default:
 		//TODO: fix this later
 		fmt.Println(node)
