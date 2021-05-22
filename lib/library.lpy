@@ -1,0 +1,112 @@
+(define caar [x] (car (car x)))
+(define cadr [x] (car (cdr x)))
+(define cdar [x] (cdr (car x)))
+(define cddr [x] (cdr (cdr x)))
+
+
+; basic expressions
+(define sqrt [x] (# x 0.5))
+(define square [x] (* x x))
+(define inc [x] (+ x 1))
+(define dec [x] (- x 1))
+(define abs [x] 
+    (if (>= x 0) x (* x -1))
+)
+(define ! [x] (if x false true))
+(define neg? [x] (< x 0))
+(define pos? [x] (> x 0))
+(define zero? [x] (= x 0))
+(define even? [x] (zero? (% x 2)))
+(define odd? [x] (! even))
+(define nil? [x] (= x ()))
+(define list? [x] (= (type x) "list"))
+(define int? [x] (= (type x) "int"))
+(define float? [x] (= (type x) "float"))
+(define symbol? [x] (= (type x) "symbol"))
+
+
+; list methods
+(define range [start stop step]
+    (if (< start stop)
+        (cons start (range (+ start step) stop step))
+        ()
+    )
+)
+
+
+(define reduce [arr func current]
+    (if (nil? arr)
+        current
+        (reduce (cdr arr) func (func current (car arr)))
+    )
+)
+
+
+(define max [arr]
+    (if (nil? arr) 
+        currMax
+        (reduce arr (fn [a b] (if (< a b) b a)) (car arr))
+    )
+)
+
+
+(define min [arr]
+    (if (nil? arr) 
+        currMax
+        (reduce arr (fn [a b] (if (> a b) b a)) (car arr))
+    )
+)
+
+; defines a list from 0...x-1 
+(define seq [x] (range 0 x 1))
+
+(define map [arr func] 
+    (if (nil? arr)
+        ()
+        (cons (func (car arr)) (map (cdr arr) func))
+    )
+)
+
+
+
+
+; macros
+
+(macro when [terms]
+    (list 'if (car terms) (cadr terms))
+)
+
+(macro let [terms]
+    (do
+        (define decl (car terms))
+        (define declname (car decl))
+        (define declval (cdr decl))
+        (define body (cdr terms))
+        (list 
+            (list 'fn [declname] body)
+            declval
+        )
+        
+    )
+)
+
+; quasiquote
+(macro quasiquote [terms]
+    ; note we do cons 'list so that map is called when evaluating the macro, not on the first call
+    (cons 'list 
+        (map terms
+            (fn [term] 
+                (if (list? term)
+                    (if (= (car term) ',) 
+                        (cadr term)
+                        (list 'quasiquote term)
+                    ) 
+                    (list 'quote term)
+                )
+            )
+         )
+    ) 
+)
+(quasiquote (1 3 2 ',(+ 3 4)))
+
+

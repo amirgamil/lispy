@@ -67,8 +67,13 @@ func (l SexpPair) String() string {
 		}
 		break
 	}
-	//add last item
-	str += pair.head.String()
+
+	if pair.head != nil {
+		str += pair.head.String()
+	} else {
+		//remove extra white space at at end
+		str = str[:len(str)-1]
+	}
 	if pair.tail == nil {
 		str += ")"
 	} else {

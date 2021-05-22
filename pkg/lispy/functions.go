@@ -61,7 +61,7 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 
 	if node.defn.macro {
 		//pass the args directly, macro takes in one input so we can do this directly
-		env.store[node.defn.arguments.value[0].String()] = s.arguments
+		env.store[node.defn.arguments.value[0].String()] = s.arguments.head
 		macroRes := env.evalNode(node.defn.body)
 		fmt.Println("macro => ", macroRes)
 		//evaluate the result of the macro transformed input
@@ -69,8 +69,12 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 	}
 	//otherwise not a macro, so evaluate all of the arguments before calling the function
 	if s.arguments.head != nil {
+		fmt.Println("args: ", s.arguments)
 		for _, toEvaluate := range makeList(s.arguments) {
-			newExprs = append(newExprs, env.evalNode(toEvaluate))
+			//TODO: figure why adding this in makeList is causing problems
+			if toEvaluate != nil {
+				newExprs = append(newExprs, env.evalNode(toEvaluate))
+			}
 		}
 	}
 
@@ -109,6 +113,11 @@ func createList(env *Env, name string, args []Sexp) Sexp {
 	return i
 }
 
+/******** quote **********/
+func quote(env *Env, name string, args []Sexp) Sexp {
+	return args[0]
+}
+
 //helper function to convert list of args into list of cons cells
 //this method is very similar to makeSList, the only difference is that it unwraps quotes
 //so that they are no longer stored as SexpPair{head: quote, tail: actual symbol}
@@ -141,13 +150,7 @@ func unwrap(arg Sexp) SexpPair {
 			log.Fatal("Error unwrapping for built in functions")
 		}
 	}
-	if pair1.tail == nil {
-		return pair1
-	} else {
-		//to allow for recursive calls from cons (which remove the double wrap), so return the correct depth
-		return SexpPair{head: pair1, tail: nil}
-	}
-
+	return SexpPair{head: pair1, tail: nil}
 }
 
 func car(env *Env, name string, args []Sexp) Sexp {
@@ -179,6 +182,8 @@ func cdr(env *Env, name string, args []Sexp) Sexp {
 			return SexpPair{}
 		}
 		return i.tail
+	case SexpInt, SexpFloat, SexpSymbol:
+		return SexpPair{}
 	default:
 		fmt.Println(reflect.TypeOf(i))
 		log.Fatal("argument 0 of cdr has wrong type!")
@@ -190,7 +195,6 @@ func cons(env *Env, name string, args []Sexp) Sexp {
 	if len(args) < 2 {
 		log.Fatal("Incorrect number of arguments!")
 	}
-
 	//unwrap the list in the block quote (need to evaluate first to allow for recursive calls)
 	list := unwrap(args[1])
 	newHead := consHelper(args[0], list.head)
@@ -326,6 +330,35 @@ func handleLogicalOp(name string, log ...bool) bool {
 		result = log[0] && log[1]
 	}
 	return result
+}
+
+/******* handle typeOf *********/
+func typeOf(env *Env, name string, args []Sexp) Sexp {
+	var typeCurr SexpSymbol
+	if len(args) < 1 {
+		log.Fatal("require a parameter to check type of")
+	}
+	switch i := args[0].(type) {
+	case SexpInt:
+		typeCurr = SexpSymbol{ofType: STRING, value: "int"}
+	case SexpFloat:
+		typeCurr = SexpSymbol{ofType: STRING, value: "float"}
+	case SexpPair:
+		if i.tail == nil {
+			return typeOf(env, name, []Sexp{i.head})
+		} else {
+			typeCurr = SexpSymbol{ofType: STRING, value: "list"}
+		}
+	case SexpSymbol:
+		typeCurr = SexpSymbol{ofType: STRING, value: "symbol"}
+	case SexpFunctionLiteral:
+		typeCurr = SexpSymbol{ofType: STRING, value: "funcLiteral"}
+	case SexpFunctionCall:
+		typeCurr = SexpSymbol{ofType: STRING, value: "funcCall"}
+	default:
+		log.Fatal("unexpected type!")
+	}
+	return typeCurr
 }
 
 /******* handle relational operations *********/

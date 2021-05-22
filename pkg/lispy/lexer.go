@@ -38,6 +38,7 @@ const DEFINE TokenType = "DEFINE"
 const TRUE TokenType = "TRUE"
 const FALSE TokenType = "FALSE"
 const QUOTE TokenType = "QUOTE"
+const UNQUOTE TokenType = "UNQUOTE"
 const DO TokenType = "DO"
 const ARRAY TokenType = "ARRAY"
 const MACRO TokenType = "MACRO"
@@ -169,7 +170,7 @@ func (l *Lexer) scanToken() Token {
 		token = newToken(LSQUARE, "[")
 	case ']':
 		token = newToken(RSQUARE, "]")
-	case '\'', ',':
+	case '\'':
 		token = newToken(QUOTE, "'")
 	case '-':
 		if unicode.IsDigit(rune(l.peek())) {

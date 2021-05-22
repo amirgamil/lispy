@@ -59,6 +59,8 @@ func returnDefinedFunctions() map[string]LispyUserFunction {
 	functions["not"] = not
 	functions["println"] = printlnStatement
 	functions["list"] = createList
+	functions["type"] = typeOf
+	functions["quote"] = quote
 	return functions
 }
 
@@ -87,7 +89,7 @@ func (env *Env) evalSymbol(s SexpSymbol, args []Sexp) Sexp {
 		if len(args) == 0 {
 			return getVarBinding(env, s.value, args)
 		}
-		//otherwise assume this is a function call
+		//otherwise assume this is a function call - this is MACROEXPANSION CODE!!
 		argList, isList := args[0].(SexpPair)
 		if !isList {
 			log.Fatal("Error trying to parse arguments for function call")
@@ -96,18 +98,16 @@ func (env *Env) evalSymbol(s SexpSymbol, args []Sexp) Sexp {
 		if s.value == "fn" {
 			params, isArray := argList.head.(SexpArray)
 			if !isArray {
-				//is there a scenario in which we can have an anon function with no parameters?
-				//if so, change this
 				log.Fatal("Error parsing anonymous function in macro expansion!")
 			}
 			newParams := params
-			//evaluate ever arg
 			anonFunc := SexpFunctionLiteral{name: "fn", arguments: newParams, body: argList.tail, userfunc: nil, macro: false}
 			return anonFunc
 		}
 		funcCall := SexpFunctionCall{name: s.value, arguments: argList}
 		return env.evalFunctionCall(&funcCall)
 	default:
+		fmt.Println(s.ofType, " ", s.value, " args: ", args)
 		log.Fatal("Uh oh, weird symbol my dude")
 		return nil
 	}
@@ -138,7 +138,6 @@ func (env *Env) evalList(n SexpPair) Sexp {
 	if n.head == nil {
 		return SexpPair{}
 	}
-
 	tail, isTail := n.tail.(SexpPair)
 	switch head := n.head.(type) {
 	case SexpSymbol:
@@ -160,7 +159,7 @@ func (env *Env) evalList(n SexpPair) Sexp {
 				log.Fatal("Error trying to interpret quote")
 			}
 			//don't evaluate the expression
-			toReturn = tail
+			toReturn = tail.head
 		case IF:
 			if !isTail {
 				fmt.Println("Error interpreting condition for the if statement")
@@ -189,6 +188,7 @@ func (env *Env) evalList(n SexpPair) Sexp {
 				break
 			}
 		default:
+			fmt.Println("default symbol in list -> ", n.head)
 			toReturn = env.evalSymbol(symbol, []Sexp{tail})
 		}
 	case SexpFunctionLiteral:
@@ -196,8 +196,9 @@ func (env *Env) evalList(n SexpPair) Sexp {
 		if head.name == "fn" {
 			//save body of function to the env then call
 			funcDefinition(env, &head)
-			if !isTail {
-				log.Fatal("Error parsing anonymous function parameters")
+			//check tail != nil for anon function with no parameters
+			if !isTail && n.tail != nil {
+				log.Fatal("Error interpreting anonymous function parameters")
 			}
 			funcCall := SexpFunctionCall{name: "fn", arguments: tail, body: nil}
 			toReturn = env.evalFunctionCall(&funcCall)
@@ -243,6 +244,7 @@ func (env *Env) evalNode(node Sexp) Sexp {
 		if ok {
 			toReturn = env.evalList(original)
 		}
+		fmt.Println(toReturn)
 	case SexpInt, SexpFloat:
 		toReturn = node
 	case SexpSymbol:
