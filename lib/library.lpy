@@ -92,12 +92,12 @@
 
 ; quasiquote
 (macro quasiquote [terms]
-    ; note we do cons 'list so that map is called when evaluating the macro, not on the first call
+    ; note we do cons 'list so that map is called when evaluating the macro-expansion, not on the first call
     (cons 'list 
         (map terms
             (fn [term] 
                 (if (list? term)
-                    (if (= (car term) ',) 
+                    (if (= (car term) 'unquote) 
                         (cadr term)
                         (list 'quasiquote term)
                     ) 
@@ -107,6 +107,8 @@
          )
     ) 
 )
-(quasiquote (1 3 2 ',(+ 3 4)))
+
+(quasiquote (1 3 2 (unquote (* 2 4))))
+
 
 

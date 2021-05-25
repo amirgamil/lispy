@@ -69,13 +69,14 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 	}
 	//otherwise not a macro, so evaluate all of the arguments before calling the function
 	if s.arguments.head != nil {
-		fmt.Println("args: ", s.arguments)
+		// fmt.Println("args: ", s.arguments)
 		for _, toEvaluate := range makeList(s.arguments) {
 			//TODO: figure why adding this in makeList is causing problems
 			if toEvaluate != nil {
 				newExprs = append(newExprs, env.evalNode(toEvaluate))
 			}
 		}
+		// fmt.Println("done with func params")
 	}
 
 	//load the passed in data to the arguments of the function in the environment
@@ -388,10 +389,11 @@ func lthan(env *Env, name string, args []Sexp) Sexp {
 func relationalOperator(env *Env, name string, args []Sexp) Sexp {
 	result := true
 	tokenType := TRUE
-	orig := env.evalNode(args[0])
+	//recall we evaluated params before function call already
+	orig := args[0]
 
 	for i := 1; i < len(args); i++ {
-		curr := env.evalNode(args[i])
+		curr := args[i]
 		switch i := orig.(type) {
 		case SexpFloat:
 			result = relationalOperatorMatchFloat(name, i, curr)
@@ -402,7 +404,7 @@ func relationalOperator(env *Env, name string, args []Sexp) Sexp {
 		case SexpPair:
 			result = relationalOperatorMatchList(name, i, curr)
 		default:
-			log.Fatal("Error, must provide only a SexpInter with a relational operator")
+			log.Fatal("Error, unexpected type in relational operator")
 		}
 		if result == false {
 			tokenType = FALSE

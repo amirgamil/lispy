@@ -84,6 +84,8 @@ func (env *Env) evalSymbol(s SexpSymbol, args []Sexp) Sexp {
 		return conditionalStatement(env, s.value, args)
 	case DEFINE:
 		return varDefinition(env, args[0].String(), args[1:])
+	case QUOTE:
+		return s
 	case SYMBOL:
 		//if no argument then it's a variable
 		if len(args) == 0 {
@@ -188,7 +190,7 @@ func (env *Env) evalList(n SexpPair) Sexp {
 				break
 			}
 		default:
-			fmt.Println("default symbol in list -> ", n.head)
+			// fmt.Println("default symbol in list -> ", n.head)
 			toReturn = env.evalSymbol(symbol, []Sexp{tail})
 		}
 	case SexpFunctionLiteral:
@@ -244,7 +246,7 @@ func (env *Env) evalNode(node Sexp) Sexp {
 		if ok {
 			toReturn = env.evalList(original)
 		}
-		fmt.Println(toReturn)
+		// fmt.Println("return of list => ", toReturn)
 	case SexpInt, SexpFloat:
 		toReturn = node
 	case SexpSymbol:

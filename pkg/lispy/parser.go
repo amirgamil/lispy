@@ -340,7 +340,7 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 		if errorL != nil {
 			log.Fatal("Error parsing quote!")
 		}
-		expr = makeSList([]Sexp{SexpSymbol{ofType: QUOTE, value: "'"}, nextExpr})
+		expr = makeSList([]Sexp{SexpSymbol{ofType: QUOTE, value: tokens[idx].Literal}, nextExpr})
 		idx += toAdd
 	//eventually refactor to handle other symbols like identifiers
 	//create a map with all of these operators pre-stored and just get, or default, passing in tokentype to check if it exists
