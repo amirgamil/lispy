@@ -61,7 +61,7 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 	newExprs := make([]Sexp, 0)
 
 	if node.defn.macro {
-		fmt.Println(s.arguments.head)
+		fmt.Println("macro args -> ", s.arguments)
 		//pass the args directly, macro takes in one input so we can do this directly
 		env.store[node.defn.arguments.value[0].String()] = s.arguments
 		macroRes := env.evalNode(node.defn.body)

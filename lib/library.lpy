@@ -90,7 +90,6 @@
     )
 )
 
-; quasiquote
 (macro quasiquote [terms]
     ; note we do cons 'list so that map is called when evaluating the macro-expansion, not on the first call
     (cons 'list 
@@ -114,3 +113,58 @@
         (list 'if (car terms) (cadr terms) (cons 'cond (cddr terms)))
     )
 )
+
+; immutable key-value hashmap 
+; O(n) lookup with O(1) insert
+; ex: (comp "key1" "val1" "key2" "val2")
+(macro hash-map [terms]
+    (if (nil? terms)
+        ()
+        (list 'cons (list 'cons (car terms) (cadr terms)) (cons 'hash-map (cddr terms)))
+    )
+)
+
+
+; O(n) recursive lookup
+(define get [hm key]
+    (if (nil? hm)
+        ()
+        (if (= key (caar hm))
+            (cdar hm)
+            (get (cdr hm) key)
+        )
+    )
+)
+
+; hash-maps are immutable, add returns a new hash-map with the new key, val pair 
+; it does not modify existing ones
+(define add [hm key val]
+    (cons (cons key val) hm)
+)
+
+; return list of keys in the hash-map
+(define keys [hm]
+    (if (nil? hm)
+        ()
+        (cons (caar hm) (keys (cdr hm)))
+    )
+)
+
+; return list of values in the hash-map
+(define values [hm]
+    (if (nil? hm)
+        ()
+        (cons (car (cdar hm)) (values (cdr hm)))
+    )
+)
+
+(define a 
+    (hash-map 
+        "1" 5
+        "2" 6
+        "3" 7
+    )
+)
+
+(values a)
+
