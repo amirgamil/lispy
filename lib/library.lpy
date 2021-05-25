@@ -94,7 +94,7 @@
 (macro quasiquote [terms]
     ; note we do cons 'list so that map is called when evaluating the macro-expansion, not on the first call
     (cons 'list 
-        (map terms
+        (map (car terms)
             (fn [term] 
                 (if (list? term)
                     (if (= (car term) 'unquote) 
@@ -108,7 +108,9 @@
     ) 
 )
 
-(quasiquote (1 3 2 (unquote (* 2 4))))
-
-
-
+(macro cond [terms]
+    (if (nil? terms)
+        ()
+        (list 'if (car terms) (cadr terms) (cons 'cond (cddr terms)))
+    )
+)

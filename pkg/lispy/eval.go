@@ -190,7 +190,7 @@ func (env *Env) evalList(n SexpPair) Sexp {
 				break
 			}
 		default:
-			// fmt.Println("default symbol in list -> ", n.head)
+			// fmt.Println("default symbol ", symbol, " in list -> ", tail)
 			toReturn = env.evalSymbol(symbol, []Sexp{tail})
 		}
 	case SexpFunctionLiteral:
@@ -246,7 +246,7 @@ func (env *Env) evalNode(node Sexp) Sexp {
 		if ok {
 			toReturn = env.evalList(original)
 		}
-		// fmt.Println("return of list => ", toReturn)
+		// clear("return of list => ", toReturn)
 	case SexpInt, SexpFloat:
 		toReturn = node
 	case SexpSymbol:

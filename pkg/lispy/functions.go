@@ -25,7 +25,8 @@ func getVarBinding(env *Env, key string, args []Sexp) Sexp {
 	if v, found := env.store[key]; found {
 		value, ok := v.(Sexp)
 		if !ok {
-			log.Fatal("error converting stored data to a string")
+			//means empty list passed in
+			return SexpPair{}
 		}
 		return value
 	}
@@ -60,8 +61,9 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 	newExprs := make([]Sexp, 0)
 
 	if node.defn.macro {
+		fmt.Println(s.arguments.head)
 		//pass the args directly, macro takes in one input so we can do this directly
-		env.store[node.defn.arguments.value[0].String()] = s.arguments.head
+		env.store[node.defn.arguments.value[0].String()] = s.arguments
 		macroRes := env.evalNode(node.defn.body)
 		fmt.Println("macro => ", macroRes)
 		//evaluate the result of the macro transformed input
@@ -111,6 +113,10 @@ func makeUserFunction(name string, function LispyUserFunction) FunctionValue {
 /******* create list *********/
 func createList(env *Env, name string, args []Sexp) Sexp {
 	i := unwrapSList(args)
+	if i == nil {
+		//return empty list ()
+		return SexpPair{}
+	}
 	return i
 }
 
