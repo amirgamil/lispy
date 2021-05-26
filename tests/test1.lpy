@@ -21,3 +21,7 @@
 (or false false) ;false
 (or true false) ;true
 (not false) ;true
+
+; custom operators
+(divisible? 10 5)
+(divisible? 11 3)

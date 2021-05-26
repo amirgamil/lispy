@@ -1,23 +1,11 @@
-(define caar [x] (car (car x)))
-(define cadr [x] (car (cdr x)))
-(define cdar [x] (cdr (car x)))
-(define cddr [x] (cdr (cdr x)))
+; recursion
+(define fact [n] (if (= n 0) 1 (* n (fact (- n 1)))))
+(fact 5) ;120
 
-
-(macro let [terms]
-    (do
-        (define decl (car terms))
-        (define declname (car decl))
-        (define declval (cdr decl))
-        (define body (cadr terms))
-        (list 
-            (list 'fn [declname] body)
-            declval
-        )
-        
-    )
+(define fib [n] (if (<= n 1) 
+                    n 
+                    (+ (fib (- n 1) (fib (- n 2))))
+                )
 )
 
-(let (a 5)
-    (+ a 2)
-)
+(fib 6) ;5

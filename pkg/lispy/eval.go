@@ -61,6 +61,9 @@ func returnDefinedFunctions() map[string]LispyUserFunction {
 	functions["list"] = createList
 	functions["type"] = typeOf
 	functions["quote"] = quote
+	functions["rand"] = random
+	functions["number"] = number
+	functions["symbol"] = symbol
 	return functions
 }
 
@@ -224,6 +227,10 @@ func (env *Env) evalList(n SexpPair) Sexp {
 				//this is a function call so we can use the code above under case SexpFunctionLiteral
 				//by artificially constructing a list as such
 				toReturn = env.evalList(SexpPair{head: funcLiteral, tail: n.tail})
+			} else {
+				fmt.Println(n)
+				//just a nested list so return entire list
+				toReturn = n
 			}
 		} else {
 			//TODO: might need to be fixed
@@ -308,21 +315,6 @@ func EvalSource(source string) ([]string, error) {
 	env := InitState()
 	return Eval(ast, env), nil
 }
-
-// func listLen(expr Sexp) int {
-// 	sz := 0
-// 	var list *SexpPair
-// 	ok := false
-// 	for expr != nil {
-// 		list, ok = expr.(*SexpPair)
-// 		if !ok {
-// 			log.Fatal("ListLen() called on non-list")
-// 		}
-// 		sz++
-// 		expr = list.tail
-// 	}
-// 	return sz
-// }
 
 //helper function to return a list of Sexp nodes from a linked list of cons cell
 func makeList(s SexpPair) []Sexp {

@@ -12,18 +12,19 @@
 (define abs [x] 
     (if (>= x 0) x (* x -1))
 )
+(define neg [x] (- 0 x))
 (define ! [x] (if x false true))
 (define neg? [x] (< x 0))
 (define pos? [x] (> x 0))
 (define zero? [x] (= x 0))
+(define divisible? [a b] (= (% a b) 0))
 (define even? [x] (zero? (% x 2)))
-(define odd? [x] (! even))
+(define odd? [x] (! (even? x)))
 (define nil? [x] (= x ()))
 (define list? [x] (= (type x) "list"))
 (define int? [x] (= (type x) "int"))
 (define float? [x] (= (type x) "float"))
 (define symbol? [x] (= (type x) "symbol"))
-
 
 ; list methods
 (define range [start stop step]
@@ -44,7 +45,7 @@
 
 (define max [arr]
     (if (nil? arr) 
-        currMax
+        0
         (reduce arr (fn [a b] (if (< a b) b a)) (car arr))
     )
 )
@@ -52,13 +53,21 @@
 
 (define min [arr]
     (if (nil? arr) 
-        currMax
+        0
         (reduce arr (fn [a b] (if (> a b) b a)) (car arr))
+    )
+)
+
+(define sum [arr]
+    (if (nil? arr)
+        0
+        (reduce arr + 0)
     )
 )
 
 ; defines a list from 0...x-1 
 (define seq [x] (range 0 x 1))
+
 
 (define map [arr func] 
     (if (nil? arr)
@@ -67,15 +76,57 @@
     )
 )
 
+(define filter [arr func]
+    (if (nil? arr)
+        ()
+        (if (func (car arr))
+            (cons (car arr) (filter (cdr arr) func))
+            (filter (cdr arr) func)
+        )
+    )
+)
+
+; O(n) operation, loop through entire list and add to end
+(define append [arr el]
+    (if (nil? arr)
+        (list el)
+        (cons (car arr) (append (cdr arr) el))
+    )
+)
+
+; O(n^2) since each append is O(n)
+(define reverse [arr]
+    (if (nil? arr)
+        ()
+        (append (reverse (cdr arr)) (car arr))
+    )
+)
 
 
+(define each [arr func]
+    (if (nil? arr)
+        ()
+        (
+            do
+            (func (car arr))
+            (each (cdr arr) func)
+        )
+    )
+)
+
+; generate unique, not previously defined symbol
+(define gensym []
+    (symbol (* 1000 (rand)))
+)
 
 ; macros
 
+; (when (precondition) (postcondition))
 (macro when [terms]
     (list 'if (car terms) (cadr terms))
 )
 
+; local bindings within lexical scope
 (macro let [terms]
     (do
         (define decl (car terms))
@@ -107,12 +158,32 @@
     ) 
 )
 
+; (cond (precondition) (postcondition) (precondition2) (postcondition2)...)
 (macro cond [terms]
     (if (nil? terms)
         ()
         (list 'if (car terms) (cadr terms) (cons 'cond (cddr terms)))
     )
 )
+
+; fix this using https://clojuredocs.org/clojure.core/-%3E
+; note that with thread first, we put functions inner to outer
+(macro -> [terms]
+    (do
+        (define apply-partials [partials expr]
+            (if (nil? partials)
+                expr
+                (if (symbol? (car partials))
+                    (list (car partials) (apply-partials (cdr partials) expr))
+                    ; if it's a list with other parameters, insert expr as second parameter into partial
+                    (list (caar partials) expr (cdar par))
+                )
+            )
+        )
+        (apply-partials )
+    )
+)
+
 
 ; immutable key-value hashmap 
 ; O(n) lookup with O(1) insert
@@ -124,13 +195,12 @@
     )
 )
 
-
 ; O(n) recursive lookup
 (define get [hm key]
     (if (nil? hm)
         ()
         (if (= key (caar hm))
-            (cdar hm)
+            (car (cdar hm))
             (get (cdr hm) key)
         )
     )
@@ -158,13 +228,7 @@
     )
 )
 
-(define a 
-    (hash-map 
-        "1" 5
-        "2" 6
-        "3" 7
-    )
-)
 
-(values a)
+
+
 

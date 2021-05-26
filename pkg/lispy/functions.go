@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"reflect"
+	"strconv"
 )
 
 type LispyUserFunction func(env *Env, name string, args []Sexp) Sexp
@@ -61,11 +63,11 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 	newExprs := make([]Sexp, 0)
 
 	if node.defn.macro {
-		fmt.Println("macro args -> ", s.arguments)
 		//pass the args directly, macro takes in one input so we can do this directly
 		env.store[node.defn.arguments.value[0].String()] = s.arguments
 		macroRes := env.evalNode(node.defn.body)
-		fmt.Println("macro => ", macroRes)
+		//uncomment line below to see macro-expansion
+		// fmt.Println("macro => ", macroRes)
 		//evaluate the result of the macro transformed input
 		return env.evalNode(macroRes)
 	}
@@ -249,6 +251,43 @@ func conditionalStatement(env *Env, name string, args []Sexp) Sexp {
 	return toReturn
 }
 
+/******* handle random numbers *********/
+func random(env *Env, name string, args []Sexp) Sexp {
+	if len(args) != 0 {
+		log.Fatal("Error generating random number")
+	}
+	return SexpFloat(rand.Float64())
+}
+
+/******* handle type conversions for non-list *********/
+func number(env *Env, name string, args []Sexp) Sexp {
+	if len(args) > 1 {
+		log.Fatal("Error casting to number")
+	}
+	switch i := args[0].(type) {
+	case SexpSymbol:
+		num, err := strconv.ParseFloat(i.value, 64)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return SexpFloat(num)
+	case SexpInt:
+		return SexpFloat(i)
+	case SexpFloat:
+		return i
+	default:
+		log.Fatal("Error casting list to number")
+		return nil
+	}
+}
+
+func symbol(env *Env, name string, args []Sexp) Sexp {
+	if len(args) > 1 {
+		log.Fatal("Error casting to number")
+	}
+	return SexpSymbol{ofType: SYMBOL, value: args[0].String()}
+}
+
 /******* handle println statements *********/
 func printlnStatement(env *Env, name string, args []Sexp) Sexp {
 	for _, arg := range args {
@@ -421,7 +460,7 @@ func relationalOperator(env *Env, name string, args []Sexp) Sexp {
 }
 
 func relationalOperatorMatchList(name string, x SexpPair, y Sexp) bool {
-	var res bool
+	res := true
 	switch i := y.(type) {
 	case SexpPair:
 		list1 := makeList(x)
@@ -430,7 +469,7 @@ func relationalOperatorMatchList(name string, x SexpPair, y Sexp) bool {
 			res = false
 		} else {
 			for i := 0; i < len(list1); i++ {
-				res = list1[i] == list2[i]
+				res = (res && list1[i] == list2[i])
 			}
 		}
 	default:

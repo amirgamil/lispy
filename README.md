@@ -11,7 +11,7 @@ Spec
 - [x] Functions
     - [x] Thoroughly tested
 - [x] Local bindings via let
-- [ ] Support for strings
+- [x] Macros
 - [ ] Tail-optimized recursion
 
 

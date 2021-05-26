@@ -236,33 +236,6 @@ func parseFunctionLiteral(tokens []Token, name string, macro bool) (Sexp, int, e
 	return SexpFunctionLiteral{name: name, arguments: args, body: body, userfunc: nil, macro: macro}, idx + 1, nil
 }
 
-//parses a function call - TO BE REMOVED, keep now in case
-// func parseFunctionCall(tokens []Token, body Sexp) (Sexp, int, error) {
-// 	idx := 0
-// 	name := tokens[0].Literal
-// 	idx += 1
-// 	var origArgs SexpPair
-// 	//if there are no parameters
-// 	if tokens[idx].Token == RPAREN {
-// 		origArgs = SexpPair{}
-// 		idx++
-// 	} else {
-// 		args, add, err := parseList(tokens[idx:])
-// 		//is there a better way than to type assert?
-// 		argsPair, isArgs := args.(SexpPair)
-// 		if !isArgs {
-// 			fmt.Println(origArgs)
-// 			log.Fatal("Error parsing function parameters")
-// 		}
-// 		origArgs = argsPair
-// 		if err != nil {
-// 			return nil, 0, err
-// 		}
-// 		idx += add
-// 	}
-// 	return SexpFunctionCall{name: name, arguments: origArgs, body: nil}, idx, nil
-// }
-
 //parses a single expression (list or non-list)
 //TODO: clean all the unnecessary extra adds
 func parseExpr(tokens []Token) (Sexp, int, error) {
