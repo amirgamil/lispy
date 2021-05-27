@@ -67,7 +67,7 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 		env.store[node.defn.arguments.value[0].String()] = s.arguments
 		macroRes := env.evalNode(node.defn.body)
 		//uncomment line below to see macro-expansion
-		// fmt.Println("macro => ", macroRes)
+		fmt.Println("macro => ", macroRes)
 		//evaluate the result of the macro transformed input
 		return env.evalNode(macroRes)
 	}

@@ -1,0 +1,14 @@
+(define max-stack 100000) ;100,000 = stack overflow
+
+
+(define sub [n]
+    (if (= 0 n)
+        (println "Done!")
+        (do 
+            (define next (dec n))
+            (sub next)
+        )
+    )
+)
+
+(sub max-stack)

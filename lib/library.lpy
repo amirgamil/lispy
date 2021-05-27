@@ -119,6 +119,53 @@
     (symbol (* 1000 (rand)))
 )
 
+; get nth item in list (0-indexed)
+(define nth [arr n]
+    (if (= n 0)
+        (car arr)
+        (nth (cdr arr) (dec n))
+    )
+)
+
+; get size of list
+(define size [arr]
+    (do
+        (define iterSize [n arr]
+            (if (nil? arr)
+                n
+                (iterSize (inc n) (cdr arr))
+            )
+        )
+        (iterSize 0 arr)
+    )
+)
+
+; get index of item in list
+(define index [arr item]
+    (do 
+        (define getIndex [index arr item]
+            (if (nil? arr)
+                -1
+                (if (= (car arr) item)
+                    index
+                    (getIndex (inc index) (cdr arr) item)
+                )
+            )
+        )
+        (getIndex 0 arr item)
+    )
+)
+
+
+; get last item in list
+(define last [arr]
+    (if (nil? (cdr arr))
+        (car arr)
+        (last (cdr arr))
+    )
+)
+
+
 ; macros
 
 ; (when (precondition) (postcondition))
@@ -166,8 +213,8 @@
     )
 )
 
-; fix this using https://clojuredocs.org/clojure.core/-%3E
-; note that with thread first, we put functions inner to outer
+; thread-first
+; inserts first form as the first argument (second in list) of the second form, and so forth
 (macro -> [terms]
     (do
         (define apply-partials [partials expr]
@@ -175,14 +222,35 @@
                 expr
                 (if (symbol? (car partials))
                     (list (car partials) (apply-partials (cdr partials) expr))
-                    ; if it's a list with other parameters, insert expr as second parameter into partial
-                    (list (caar partials) expr (cdar par))
+                    ; if it's a list with other parameters, insert expr (recursive call) 
+                    ; as second parameter into partial (note need to use cons to ensure same list for func args)
+                    (cons (caar partials) (cons (apply-partials (cdr partials) expr) (cdar partials)))
                 )
             )
         )
-        (apply-partials )
+        (apply-partials (reverse (cdr terms)) (car terms))
     )
 )
+
+; thread-last
+; same as -> but inserts first form as last argument (last in list) of second form, and so forth
+(macro ->> [terms]
+    (do
+        (define apply-partials [partials expr]
+            (if (nil? partials)
+                expr
+                (if (symbol? (car partials))
+                    (list (car partials) (apply-partials (cdr partials) expr))
+                    ; if it's a list with other parameters, insert expr (recursive call) 
+                    ; as last form 
+                    (cons (caar partials) (append (cdar partials) (apply-partials (cdr partials) expr)))
+                )
+            )
+        )
+        (apply-partials (reverse (cdr terms)) (car terms))
+    )
+)
+
 
 
 ; immutable key-value hashmap 

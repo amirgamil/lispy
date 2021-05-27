@@ -87,6 +87,7 @@ func main() {
 		if err != nil {
 			log.Fatal("Error opening file to read!")
 		}
+		defer file.Close()
 		env := lispy.InitState()
 		repl(file, env)
 	}

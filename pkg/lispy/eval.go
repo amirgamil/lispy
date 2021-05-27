@@ -3,7 +3,9 @@ package lispy
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"os"
 	"reflect"
 	"strings"
 )
@@ -73,6 +75,16 @@ func InitState() *Env {
 	env.store = make(map[string]Value)
 	for key, function := range returnDefinedFunctions() {
 		env.store[key] = makeUserFunction(key, function)
+	}
+	//load library functions
+	file, err := os.Open("lib/library.lpy")
+	if err != nil {
+		log.Fatal("Error opening file to read! ", err)
+	}
+	defer file.Close()
+	errLib := EvalSourceIO(file, env)
+	if errLib != nil {
+		log.Fatal("Error loading library packages of lispy")
 	}
 	//this is the global reference, so set the pointer to nil
 	env.global = nil
@@ -314,6 +326,17 @@ func EvalSource(source string) ([]string, error) {
 	}
 	env := InitState()
 	return Eval(ast, env), nil
+}
+
+//used to load library packages into the env
+func EvalSourceIO(source io.Reader, env *Env) error {
+	tokens := Read(source)
+	ast, err := Parse(tokens)
+	if err != nil {
+		return errors.New("Error parsing!")
+	}
+	Eval(ast, env)
+	return nil
 }
 
 //helper function to return a list of Sexp nodes from a linked list of cons cell
