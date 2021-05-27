@@ -101,7 +101,18 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 	}
 
 	//evaluate function
-	return env.evalNode(node.defn.body)
+	return unwrapThunks(env, node)
+}
+
+//unwrap nested function calls into flat structure
+func unwrapThunks(env *Env, function FunctionValue) Sexp {
+	isTail := true
+	var funcResult Sexp
+	for isTail {
+		funcResult = env.evalNode(function.defn.body)
+		_, isTail = funcResult.(FunctionValue)
+	}
+	return funcResult
 }
 
 //helper function to take a function and return a function literal which can be saved to the environment
