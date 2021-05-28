@@ -9,3 +9,14 @@ repl:
 
 build:
 	go build -o lispy ${CMD}
+
+
+test:
+	go build -o lispy ${CMD}
+	./lispy tests/test1.lpy
+	./lispy tests/test2.lpy
+	./lispy tests/test3.lpy
+	./lispy tests/test4.lpy
+	./lispy tests/test5.lpy
+	./lispy tests/test6.lpy
+

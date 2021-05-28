@@ -17,7 +17,7 @@ import (
 //Generic interface for an Sexp (any node in our AST must implement this interface)
 type Sexp interface {
 	String() string
-	Eval(*Env, *StackFrame) Sexp
+	Eval(*Env, *StackFrame, bool) Sexp
 }
 
 //Symbol

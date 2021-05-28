@@ -1,0 +1,37 @@
+;macros
+(each (seq 18)
+    (fn [x] 
+        (cond
+            (and (divisible? x 3) (divisible? x 5)) (println "FizzBuzz!")
+            (divisible? x 3) (println "Fizz")
+            (divisible? x 5) (println "Buzz")
+            (true) (println x)
+        )
+    )
+)
+
+(let (a 5) 
+    (let (b 6)
+        (let (c 7)
+            (+ a b c)
+        )
+    )
+)
+
+(quasiquote (1 3 2 (unquote (* 2 4))))
+(cond (>= 2 3) 6)
+(cond
+    (>= 1 2) 3
+    (>= 8 2) 9
+)
+
+(-> (seq 7)
+    (filter even?)
+    (reduce + 0)
+) ; 12
+
+(->> 5
+     dec
+     (+ 2 4)
+     (* 3 4)
+) ; 120

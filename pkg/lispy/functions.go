@@ -11,12 +11,26 @@ import (
 
 type LispyUserFunction func(env *Env, name string, args []Sexp) Sexp
 
+type FunctionThunkValue struct {
+	env      *Env
+	function FunctionValue
+}
+
+func (thunk FunctionThunkValue) String() string {
+	return fmt.Sprintf("function thunk: %s", thunk.function)
+}
+
+func (thunk FunctionThunkValue) Eval(env *Env, frame *StackFrame, allowThunk bool) Sexp {
+	//Hmmmmm
+	return nil
+}
+
 /******* handle definitions *********/
 //create new variable binding
 func varDefinition(env *Env, key string, args []Sexp) Sexp {
 	var value Sexp
 	for _, arg := range args {
-		value = arg.Eval(env, &StackFrame{})
+		value = arg.Eval(env, &StackFrame{}, false)
 		env.store[key] = value
 	}
 	return value
@@ -37,7 +51,7 @@ func getVarBinding(env *Env, key string, args []Sexp) Sexp {
 }
 
 //create new function binding
-func (funcVal FunctionValue) Eval(env *Env, frame *StackFrame) Sexp {
+func (funcVal FunctionValue) Eval(env *Env, frame *StackFrame, allowThunk bool) Sexp {
 	name := frame.args[len(frame.args)-1].String()
 	//FunctionValue is a compile-time representation of a function
 	env.store[name] = funcVal
@@ -45,7 +59,7 @@ func (funcVal FunctionValue) Eval(env *Env, frame *StackFrame) Sexp {
 	return SexpSymbol{ofType: STRING, value: "#user/" + name}
 }
 
-func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
+func evalFunc(env *Env, s *SexpFunctionCall, allowThunk bool) Sexp {
 	name := s.name
 	node, isFuncLiteral := env.store[name].(FunctionValue)
 	if !isFuncLiteral {
@@ -56,7 +70,7 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 		}
 		s.name = funcName.String()
 		//don't know how deep the reference so need to recurse
-		return getFuncBinding(env, s)
+		return evalFunc(env, s, allowThunk)
 	}
 
 	//note quite critically, we need to evaluate the result of any expression arguments BEFORE we set them
@@ -66,11 +80,11 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 	if node.defn.macro {
 		//pass the args directly, macro takes in one input so we can do this directly
 		env.store[node.defn.arguments.value[0].String()] = s.arguments
-		macroRes := node.defn.body.Eval(env, &StackFrame{})
+		macroRes := node.defn.body.Eval(env, &StackFrame{}, allowThunk)
 		//uncomment line below to see macro-expansion
 		// fmt.Println("macro => ", macroRes)
 		//evaluate the result of the macro transformed input
-		return macroRes.Eval(env, &StackFrame{})
+		return macroRes.Eval(env, &StackFrame{}, allowThunk)
 	}
 	//otherwise not a macro, so evaluate all of the arguments before calling the function
 	if s.arguments.head != nil {
@@ -78,9 +92,13 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 		for _, toEvaluate := range makeList(s.arguments) {
 			//TODO: figure why adding this in makeList is causing problems
 			if toEvaluate != nil {
-				newExprs = append(newExprs, toEvaluate.Eval(env, &StackFrame{}))
+				//note pass false in case this is function call
+				evaluatedArg := toEvaluate.Eval(env, &StackFrame{}, false)
+				newExprs = append(newExprs, evaluatedArg)
+				// fmt.Println("arg: ", toEvaluate, " res: ", evaluatedArg)
 			}
 		}
+		// fmt.Println("evaluated params: ", newExprs, "\n for ", s.name, "\n\n\n")
 	}
 
 	//load the passed in data to the arguments of the function in the environment
@@ -99,19 +117,22 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 	if len(node.defn.arguments.value) != len(newExprs) {
 		log.Fatal("Incorrect number of arguments passed in to ", node.defn.name)
 	}
-
+	functionThunk := FunctionThunkValue{env: env, function: node}
+	if allowThunk {
+		return functionThunk
+	}
 	//evaluate function
-	return unwrapThunks(env, node)
+	return unwrapThunks(functionThunk)
 }
 
-//unwrap nested function calls into flat structure
-func unwrapThunks(env *Env, function FunctionValue) Sexp {
+//unwrap nested function calls into flat for loop structure for tail call optimization
+func unwrapThunks(functionThunk FunctionThunkValue) Sexp {
 	isTail := true
 	var funcResult Sexp
 	for isTail {
-		funcResult = function.defn.body.Eval(env, &StackFrame{})
-		// fmt.Println(reflect.TypeOf(funcResult))
-		_, isTail = funcResult.(FunctionValue)
+		funcResult = functionThunk.function.defn.body.Eval(functionThunk.env, &StackFrame{}, true)
+		functionThunk, isTail = funcResult.(FunctionThunkValue)
+		// fmt.Println("cheeky -> ", isTail, " ", funcResult)
 	}
 	return funcResult
 }
@@ -228,6 +249,14 @@ func consHelper(a Sexp, b Sexp) SexpPair {
 
 /******* handle conditional statements *********/
 func conditionalStatement(env *Env, name string, args []Sexp) Sexp {
+	//put thunk as last argument
+	thunk, isThunk := args[len(args)-1].(SexpSymbol)
+	//TODO: improve this
+	args = args[:len(args)-1]
+	if !isThunk {
+		log.Fatal("Error passing thunk into conditional statement")
+	}
+	allowThunk := thunk.ofType == TRUE
 	var condition bool
 	var toReturn Sexp
 	switch i := args[0].(type) {
@@ -247,14 +276,14 @@ func conditionalStatement(env *Env, name string, args []Sexp) Sexp {
 			condition = true
 		}
 	default:
+		fmt.Println(i)
 		log.Fatal("Error trying to interpret condition for if statement")
 	}
-	//TODO: adapt this for expressions or functions specifically? Not sure how do that
 	if condition {
-		toReturn = args[1].Eval(env, &StackFrame{})
+		toReturn = args[1].Eval(env, &StackFrame{}, allowThunk)
 	} else {
 		if len(args) > 2 {
-			toReturn = args[2].Eval(env, &StackFrame{})
+			toReturn = args[2].Eval(env, &StackFrame{}, allowThunk)
 		} else {
 			//no provided else block despite the condition evaluating to such
 			toReturn = SexpSymbol{ofType: FALSE, value: "nil"}
@@ -303,7 +332,7 @@ func symbol(env *Env, name string, args []Sexp) Sexp {
 /******* handle println statements *********/
 func printlnStatement(env *Env, name string, args []Sexp) Sexp {
 	for _, arg := range args {
-		res := arg.Eval(env, &StackFrame{})
+		res := arg.Eval(env, &StackFrame{}, false)
 		fmt.Print(res.String(), " ")
 		// return res
 	}
@@ -328,7 +357,7 @@ func not(env *Env, name string, args []Sexp) Sexp {
 }
 
 func logicalOperator(env *Env, name string, args []Sexp) Sexp {
-	result := getBoolFromTokenType(args[0].Eval(env, &StackFrame{}))
+	result := getBoolFromTokenType(args[0].Eval(env, &StackFrame{}, false))
 	if len(args) == 0 {
 		log.Fatal("Invalid syntax, pass in more than logical operator!")
 	}
@@ -344,7 +373,7 @@ func logicalOperator(env *Env, name string, args []Sexp) Sexp {
 		}
 		//for and, or, loop through the arguments and aggregate
 		for i := 1; i < len(args); i++ {
-			result = handleLogicalOp(name, result, getBoolFromTokenType(args[i].Eval(env, &StackFrame{})))
+			result = handleLogicalOp(name, result, getBoolFromTokenType(args[i].Eval(env, &StackFrame{}, false)))
 			if result == false {
 				//note we can't break early beacuse of the or operator
 				break
@@ -625,6 +654,7 @@ func numericMatchInt(name string, x SexpInt, y Sexp) Sexp {
 	case SexpFloat:
 		res = numericOpFloat(name, SexpFloat(x), i)
 	default:
+		fmt.Println(y)
 		log.Fatal("Error adding two numbers!")
 	}
 	return res

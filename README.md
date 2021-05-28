@@ -12,7 +12,7 @@ Spec
     - [x] Thoroughly tested
 - [x] Local bindings via let
 - [x] Macros
-- [ ] Tail-optimized recursion
+- [x] Tail-optimized recursion
 
 
 - Define new bindings to variables and functions with a universal keyword
