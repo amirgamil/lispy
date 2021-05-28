@@ -34,7 +34,7 @@ func read(reader io.Reader) []lispy.Sexp {
 
 // eval
 func eval(ast []lispy.Sexp, env *lispy.Env) []string {
-	return lispy.Eval(ast, env)
+	return env.Eval(ast)
 }
 
 // print

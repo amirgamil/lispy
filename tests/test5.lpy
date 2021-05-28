@@ -1,0 +1,12 @@
+; functions
+
+; reg function call
+(define square [x] (* x x))
+(square 5)
+
+; anon function call
+((fn [x] (* x x)) 5)
+
+; passing function as a parameter
+(define funcParam [x] (x 5))
+(funcParam (fn [x] (* x x)))

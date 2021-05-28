@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"reflect"
 	"strings"
 )
 
@@ -24,6 +23,11 @@ type Value interface {
 //Value referencing any functions
 type FunctionValue struct {
 	defn *SexpFunctionLiteral
+}
+
+//struct to store function arguments for now
+type StackFrame struct {
+	args []Sexp
 }
 
 //allow functionvalue to implement value
@@ -91,23 +95,23 @@ func InitState() *Env {
 	return env
 }
 
-func (env *Env) evalSymbol(s SexpSymbol, args []Sexp) Sexp {
+func (s SexpSymbol) Eval(env *Env, frame *StackFrame) Sexp {
 	switch s.ofType {
 	case TRUE, FALSE, STRING:
 		return s
 	case IF:
-		return conditionalStatement(env, s.value, args)
+		return conditionalStatement(env, s.value, frame.args)
 	case DEFINE:
-		return varDefinition(env, args[0].String(), args[1:])
+		return varDefinition(env, frame.args[0].String(), frame.args[1:])
 	case QUOTE:
 		return s
 	case SYMBOL:
 		//if no argument then it's a variable
-		if len(args) == 0 {
-			return getVarBinding(env, s.value, args)
+		if len(frame.args) == 0 {
+			return getVarBinding(env, s.value, frame.args)
 		}
 		//otherwise assume this is a function call - this is MACROEXPANSION CODE!!
-		argList, isList := args[0].(SexpPair)
+		argList, isList := frame.args[0].(SexpPair)
 		if !isList {
 			log.Fatal("Error trying to parse arguments for function call")
 		}
@@ -117,28 +121,31 @@ func (env *Env) evalSymbol(s SexpSymbol, args []Sexp) Sexp {
 			if !isArray {
 				log.Fatal("Error parsing anonymous function in macro expansion!")
 			}
-			newParams := params
-			anonFunc := SexpFunctionLiteral{name: "fn", arguments: newParams, body: argList.tail, userfunc: nil, macro: false}
+			bodyFunc, isValid := argList.tail.(SexpPair)
+			if !isValid {
+				log.Fatal("Error macroexpanding anon function!")
+			}
+			anonFunc := SexpFunctionLiteral{name: "fn", arguments: params, body: bodyFunc.head, userfunc: nil, macro: false}
 			return anonFunc
 		}
 		funcCall := SexpFunctionCall{name: s.value, arguments: argList}
-		return env.evalFunctionCall(&funcCall)
+		return funcCall.Eval(env, frame)
 	default:
-		fmt.Println(s.ofType, " ", s.value, " args: ", args)
+		fmt.Println(s.ofType, " ", s.value, " args: ", frame.args)
 		log.Fatal("Uh oh, weird symbol my dude")
 		return nil
 	}
 }
 
-func (env *Env) evalFunctionLiteral(s *SexpFunctionLiteral) Sexp {
-	//if it's an anonymous function, just return it the way a function would be stored in the environment
-	if (s.name) == "fn" {
-		return FunctionValue{defn: s}
-	}
-	return funcDefinition(env, s)
+func (s SexpFunctionLiteral) Eval(env *Env, frame *StackFrame) Sexp {
+	funcDefinition := FunctionValue{defn: &s}
+	//append name of function to end of args
+	frame.args = append(frame.args, SexpSymbol{ofType: STRING, value: s.name})
+	funcDefinition.Eval(env, frame)
+	return funcDefinition
 }
 
-func (env *Env) evalFunctionCall(s *SexpFunctionCall) Sexp {
+func (s SexpFunctionCall) Eval(env *Env, frame *StackFrame) Sexp {
 	//each call should get its own environment for recursion to work
 	functionCallEnv := new(Env)
 	functionCallEnv.store = make(map[string]Value)
@@ -146,10 +153,10 @@ func (env *Env) evalFunctionCall(s *SexpFunctionCall) Sexp {
 	for key, element := range env.store {
 		functionCallEnv.store[key] = element
 	}
-	return getFuncBinding(functionCallEnv, s)
+	return getFuncBinding(functionCallEnv, &s)
 }
 
-func (env *Env) evalList(n SexpPair) Sexp {
+func (n SexpPair) Eval(env *Env, frame *StackFrame) Sexp {
 	var toReturn Sexp
 	//empty string
 	if n.head == nil {
@@ -169,8 +176,9 @@ func (env *Env) evalList(n SexpPair) Sexp {
 			if !isTail {
 				log.Fatal("Unexpected definition, missing value!")
 			}
+			newFrame := StackFrame{args: makeList(tail)}
 			//binding to a variable
-			toReturn = env.evalSymbol(symbol, makeList(tail))
+			toReturn = symbol.Eval(env, &newFrame)
 		case QUOTE:
 			if !isTail {
 				log.Fatal("Error trying to interpret quote")
@@ -181,14 +189,15 @@ func (env *Env) evalList(n SexpPair) Sexp {
 			if !isTail {
 				fmt.Println("Error interpreting condition for the if statement")
 			}
-			arguments = append(arguments, env.evalNode(tail.head))
+			arguments = append(arguments, tail.head.Eval(env, frame))
 			statements, isValid := tail.tail.(SexpPair)
 			if !isValid {
 				log.Fatal("Error please provide valid responses to the if condition!")
 			}
 			res := makeList(statements)
 			arguments = append(arguments, res...)
-			toReturn = env.evalSymbol(symbol, arguments)
+			newFrame := StackFrame{args: arguments}
+			toReturn = symbol.Eval(env, &newFrame)
 		case DO:
 			//if symbol is do, we just evaluate the nodes and return the (result of the) last node
 			//note do's second element will be a list of lists so we need to unwrap it
@@ -196,7 +205,7 @@ func (env *Env) evalList(n SexpPair) Sexp {
 				log.Fatal("Error trying to interpret do statements")
 			}
 			for {
-				toReturn = env.evalNode(tail.head)
+				toReturn = tail.head.Eval(env, frame)
 				switch tail.tail.(type) {
 				case SexpPair:
 					tail = tail.tail.(SexpPair)
@@ -206,21 +215,21 @@ func (env *Env) evalList(n SexpPair) Sexp {
 			}
 		default:
 			// fmt.Println("default symbol ", symbol, " in list -> ", tail)
-			toReturn = env.evalSymbol(symbol, []Sexp{tail})
+			toReturn = symbol.Eval(env, &StackFrame{args: []Sexp{tail}})
 		}
 	case SexpFunctionLiteral:
 		//anonymous function, so handle differently
 		if head.name == "fn" {
 			//save body of function to the env then call
-			funcDefinition(env, &head)
+			head.Eval(env, frame)
 			//check tail != nil for anon function with no parameters
 			if !isTail && n.tail != nil {
 				log.Fatal("Error interpreting anonymous function parameters")
 			}
 			funcCall := SexpFunctionCall{name: "fn", arguments: tail, body: nil}
-			toReturn = env.evalFunctionCall(&funcCall)
+			toReturn = funcCall.Eval(env, frame)
 		} else {
-			toReturn = env.evalNode(n.head)
+			toReturn = head.Eval(env, frame)
 			//in a function literal, body should only be on Sexp, if there is more, throw an error
 			//in a function call, arguments will be pased into SexpFunctionCall so similar idea
 			if n.tail != nil {
@@ -228,19 +237,19 @@ func (env *Env) evalList(n SexpPair) Sexp {
 			}
 		}
 	case SexpFunctionCall:
-		toReturn = env.evalNode(n.head)
+		toReturn = head.Eval(env, frame)
 	case SexpPair:
 		original, ok := n.head.(SexpPair)
 		if ok {
-			toReturn = env.evalList(original)
+			toReturn = original.Eval(env, frame)
 			//if this is an anon function from a macro, need to set it up as such
 			funcLiteral, isFuncLiteral := toReturn.(SexpFunctionLiteral)
 			if isFuncLiteral && funcLiteral.name == "fn" {
 				//this is a function call so we can use the code above under case SexpFunctionLiteral
 				//by artificially constructing a list as such
-				toReturn = env.evalList(SexpPair{head: funcLiteral, tail: n.tail})
+				toReturn = (SexpPair{head: funcLiteral, tail: n.tail}).Eval(env, frame)
 			} else {
-				fmt.Println(n)
+				//TODO: add a check for quote, otherwise invalid!
 				//just a nested list so return entire list
 				toReturn = n
 			}
@@ -255,61 +264,28 @@ func (env *Env) evalList(n SexpPair) Sexp {
 	return toReturn
 }
 
-//wrapper for evaluating an individual Sexp node in our AST
-func (env *Env) evalNode(node Sexp) Sexp {
-	var toReturn Sexp
-	switch i := node.(type) {
-	case SexpPair:
-		//Assert type since ast is composed of generic Sexp interface
-		original, ok := node.(SexpPair)
-		if ok {
-			toReturn = env.evalList(original)
-		}
-		// clear("return of list => ", toReturn)
-	case SexpInt, SexpFloat:
-		toReturn = node
-	case SexpSymbol:
-		original, ok := node.(SexpSymbol)
-		if ok {
-			toReturn = env.evalSymbol(original, []Sexp{})
-		}
-	case SexpFunctionLiteral:
-		original, ok := node.(SexpFunctionLiteral)
-		if ok {
-			toReturn = env.evalFunctionLiteral(&original)
-		} else {
-			log.Fatal("Error evaluating function literal!")
-		}
-	case SexpFunctionCall:
-		original, ok := node.(SexpFunctionCall)
-		if ok {
-			toReturn = env.evalFunctionCall(&original)
-		} else {
-			log.Fatal("Error evaluating function call")
-		}
-	case SexpArray:
-		//necessary for handling parameters in anon functions in macros
-		//note we do this because we CAN'T CHANGE ORIGINAL FUNCTION DEFINITION
-		//would cause problems with recursion
-		new := make([]Sexp, 0)
-		for index := range i.value {
-			new = append(new, env.evalNode(i.value[index]))
-		}
-		toReturn = SexpArray{ofType: ARRAY, value: new}
-	default:
-		//TODO: fix this later
-		fmt.Println(node)
-		fmt.Println(reflect.TypeOf(node))
-		log.Fatal("error unexpected node")
+func (arr SexpArray) Eval(env *Env, frame *StackFrame) Sexp {
+	new := make([]Sexp, 0)
+	for index := range arr.value {
+		new = append(new, arr.value[index].Eval(env, frame))
 	}
-	return toReturn
+	return SexpArray{ofType: ARRAY, value: new}
+}
+
+func (s SexpFloat) Eval(env *Env, frame *StackFrame) Sexp {
+	return s
+}
+
+func (s SexpInt) Eval(env *Env, frame *StackFrame) Sexp {
+	return s
 }
 
 //evaluates and interprets our AST
-func Eval(nodes []Sexp, env *Env) []string {
+func (env *Env) Eval(nodes []Sexp) []string {
 	res := make([]string, 0)
+	frame := StackFrame{}
 	for _, node := range nodes {
-		curr := env.evalNode(node)
+		curr := node.Eval(env, &frame)
 		if curr != nil {
 			res = append(res, curr.String())
 		}
@@ -325,7 +301,7 @@ func EvalSource(source string) ([]string, error) {
 		return nil, errors.New("Error parsing!")
 	}
 	env := InitState()
-	return Eval(ast, env), nil
+	return env.Eval(ast), nil
 }
 
 //used to load library packages into the env
@@ -335,7 +311,7 @@ func EvalSourceIO(source io.Reader, env *Env) error {
 	if err != nil {
 		return errors.New("Error parsing!")
 	}
-	Eval(ast, env)
+	env.Eval(ast)
 	return nil
 }
 

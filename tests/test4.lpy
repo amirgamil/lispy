@@ -1,3 +1,4 @@
+; attempt to exhaust the stack
 (define max-stack 100000) ;100,000 = stack overflow
 
 

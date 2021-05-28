@@ -16,7 +16,7 @@ type LispyUserFunction func(env *Env, name string, args []Sexp) Sexp
 func varDefinition(env *Env, key string, args []Sexp) Sexp {
 	var value Sexp
 	for _, arg := range args {
-		value = env.evalNode(arg)
+		value = arg.Eval(env, &StackFrame{})
 		env.store[key] = value
 	}
 	return value
@@ -37,11 +37,12 @@ func getVarBinding(env *Env, key string, args []Sexp) Sexp {
 }
 
 //create new function binding
-func funcDefinition(env *Env, s *SexpFunctionLiteral) Sexp {
+func (funcVal FunctionValue) Eval(env *Env, frame *StackFrame) Sexp {
+	name := frame.args[len(frame.args)-1].String()
 	//FunctionValue is a compile-time representation of a function
-	env.store[s.name] = FunctionValue{defn: s}
+	env.store[name] = funcVal
 	//fix this
-	return SexpSymbol{ofType: STRING, value: "#user/" + s.name}
+	return SexpSymbol{ofType: STRING, value: "#user/" + name}
 }
 
 func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
@@ -65,11 +66,11 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 	if node.defn.macro {
 		//pass the args directly, macro takes in one input so we can do this directly
 		env.store[node.defn.arguments.value[0].String()] = s.arguments
-		macroRes := env.evalNode(node.defn.body)
+		macroRes := node.defn.body.Eval(env, &StackFrame{})
 		//uncomment line below to see macro-expansion
-		fmt.Println("macro => ", macroRes)
+		// fmt.Println("macro => ", macroRes)
 		//evaluate the result of the macro transformed input
-		return env.evalNode(macroRes)
+		return macroRes.Eval(env, &StackFrame{})
 	}
 	//otherwise not a macro, so evaluate all of the arguments before calling the function
 	if s.arguments.head != nil {
@@ -77,10 +78,9 @@ func getFuncBinding(env *Env, s *SexpFunctionCall) Sexp {
 		for _, toEvaluate := range makeList(s.arguments) {
 			//TODO: figure why adding this in makeList is causing problems
 			if toEvaluate != nil {
-				newExprs = append(newExprs, env.evalNode(toEvaluate))
+				newExprs = append(newExprs, toEvaluate.Eval(env, &StackFrame{}))
 			}
 		}
-		// fmt.Println("done with func params")
 	}
 
 	//load the passed in data to the arguments of the function in the environment
@@ -109,7 +109,8 @@ func unwrapThunks(env *Env, function FunctionValue) Sexp {
 	isTail := true
 	var funcResult Sexp
 	for isTail {
-		funcResult = env.evalNode(function.defn.body)
+		funcResult = function.defn.body.Eval(env, &StackFrame{})
+		// fmt.Println(reflect.TypeOf(funcResult))
 		_, isTail = funcResult.(FunctionValue)
 	}
 	return funcResult
@@ -250,10 +251,10 @@ func conditionalStatement(env *Env, name string, args []Sexp) Sexp {
 	}
 	//TODO: adapt this for expressions or functions specifically? Not sure how do that
 	if condition {
-		toReturn = env.evalNode(args[1])
+		toReturn = args[1].Eval(env, &StackFrame{})
 	} else {
 		if len(args) > 2 {
-			toReturn = env.evalNode(args[2])
+			toReturn = args[2].Eval(env, &StackFrame{})
 		} else {
 			//no provided else block despite the condition evaluating to such
 			toReturn = SexpSymbol{ofType: FALSE, value: "nil"}
@@ -302,7 +303,7 @@ func symbol(env *Env, name string, args []Sexp) Sexp {
 /******* handle println statements *********/
 func printlnStatement(env *Env, name string, args []Sexp) Sexp {
 	for _, arg := range args {
-		res := env.evalNode(arg)
+		res := arg.Eval(env, &StackFrame{})
 		fmt.Print(res.String(), " ")
 		// return res
 	}
@@ -327,7 +328,7 @@ func not(env *Env, name string, args []Sexp) Sexp {
 }
 
 func logicalOperator(env *Env, name string, args []Sexp) Sexp {
-	result := getBoolFromTokenType(env.evalNode(args[0]))
+	result := getBoolFromTokenType(args[0].Eval(env, &StackFrame{}))
 	if len(args) == 0 {
 		log.Fatal("Invalid syntax, pass in more than logical operator!")
 	}
@@ -343,7 +344,7 @@ func logicalOperator(env *Env, name string, args []Sexp) Sexp {
 		}
 		//for and, or, loop through the arguments and aggregate
 		for i := 1; i < len(args); i++ {
-			result = handleLogicalOp(name, result, getBoolFromTokenType(env.evalNode(args[i])))
+			result = handleLogicalOp(name, result, getBoolFromTokenType(args[i].Eval(env, &StackFrame{})))
 			if result == false {
 				//note we can't break early beacuse of the or operator
 				break
