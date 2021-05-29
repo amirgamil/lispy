@@ -40,7 +40,6 @@ func (env Env) String() string {
 }
 
 func (f FunctionValue) String() string {
-	//TODO: clean this up later
 	return fmt.Sprintf("function value: %s", f.defn.String())
 }
 
@@ -251,12 +250,17 @@ func (n SexpPair) Eval(env *Env, frame *StackFrame, allowThunk bool) Sexp {
 				//by artificially constructing a list as such
 				toReturn = (SexpPair{head: funcLiteral, tail: n.tail}).Eval(env, frame, allowThunk)
 			} else {
-				//TODO: add a check for quote, otherwise invalid!
-				//just a nested list so return entire list
-				toReturn = n
+				quote, isQuote := n.head.(SexpSymbol)
+				if isQuote && quote.ofType == QUOTE {
+					//just a nested list so return entire list
+					toReturn = n
+				} else {
+					log.Fatal("Error parsing")
+				}
+
 			}
 		} else {
-			//TODO: might need to be fixed
+			//empty list, so return false
 			toReturn = SexpSymbol{FALSE, "false"}
 		}
 	//if it's just a list without a symbol at the front, treat it as data and return it

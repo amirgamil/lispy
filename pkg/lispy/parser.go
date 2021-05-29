@@ -238,7 +238,6 @@ func parseFunctionLiteral(tokens []Token, name string, macro bool) (Sexp, int, e
 }
 
 //parses a single expression (list or non-list)
-//TODO: clean all the unnecessary extra adds
 func parseExpr(tokens []Token) (Sexp, int, error) {
 	idx := 0
 	var expr Sexp
@@ -253,27 +252,18 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 			//skip define token
 			name := getName(tokens[idx])
 			expr, add, err = parseFunctionLiteral(tokens[idx+1:], name, false)
-			if err != nil {
-				return nil, 0, err
-			}
-			idx += add
 		} else {
 			expr = SexpSymbol{ofType: tokens[idx].Token, value: tokens[idx].Literal}
 			//POSSIBLE FEATURE AMMENDMENT: If I add local binding via let similar to Clojure, will be added here
-			idx++
+			add = 1
 		}
 	case MACRO:
 		idx++
 		name := getName(tokens[idx])
 		expr, add, err = parseFunctionLiteral(tokens[idx+1:], name, true)
-		if err != nil {
-			return nil, 0, err
-		}
-		idx += add
 	case LSQUARE:
 		//if we reach here, then parsing a quote with square brackets
 		expr, add, _ = parseParameterArray(tokens[idx:])
-		idx += add
 	case LPAREN:
 		idx++
 		//check if anonymous function
@@ -290,16 +280,12 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 		} else {
 			expr, add, err = parseList(tokens[idx:])
 		}
-		idx += add
-		if err != nil {
-			return nil, 0, err
-		}
 	case INTEGER:
 		i, err := strconv.Atoi(tokens[idx].Literal)
 		if err != nil {
 			return nil, 0, err
 		}
-		idx++
+		add = 1
 		expr = SexpInt(i)
 	case FLOAT:
 		i, err := strconv.ParseFloat(tokens[idx].Literal, 64)
@@ -307,7 +293,7 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 			return nil, 0, err
 		}
 		expr = SexpFloat(i)
-		idx++
+		add = 1
 	case QUOTE:
 		idx++
 		nextExpr, toAdd, errorL := parseExpr(tokens[idx:])
@@ -315,16 +301,20 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 			log.Fatal("Error parsing quote!")
 		}
 		expr = makeSList([]Sexp{SexpSymbol{ofType: QUOTE, value: tokens[idx].Literal}, nextExpr})
-		idx += toAdd
+		add = toAdd
 	//eventually refactor to handle other symbols like identifiers
 	//create a map with all of these operators pre-stored and just get, or default, passing in tokentype to check if it exists
 	case STRING, TRUE, FALSE, IF, DO, SYMBOL:
 		expr = SexpSymbol{ofType: tokens[idx].Token, value: tokens[idx].Literal}
-		idx++
+		add = 1
 	default:
 		fmt.Println(tokens[idx:])
 		log.Fatal("error parsing")
 	}
+	if err != nil {
+		return nil, 0, err
+	}
+	idx += add
 	return expr, idx, nil
 }
 

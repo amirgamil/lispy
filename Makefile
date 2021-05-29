@@ -19,4 +19,5 @@ test:
 	./lispy tests/test4.lpy
 	./lispy tests/test5.lpy
 	./lispy tests/test6.lpy
+	./lispy tests/test7.lpy
 

@@ -20,8 +20,8 @@ func (thunk FunctionThunkValue) String() string {
 	return fmt.Sprintf("function thunk: %s", thunk.function)
 }
 
+//not ideal
 func (thunk FunctionThunkValue) Eval(env *Env, frame *StackFrame, allowThunk bool) Sexp {
-	//Hmmmmm
 	return nil
 }
 
