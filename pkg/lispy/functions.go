@@ -46,11 +46,19 @@ func getVarBinding(env *Env, key string, args []Sexp) Sexp {
 			//means empty list passed in
 			return SexpPair{}
 		}
-		if next, foundDeeper := env.store[value.String()]; foundDeeper {
+		newVal := value
+		switch i := value.(type) {
+		case SexpPair:
+			if i.head != nil {
+				newVal = i.head
+			}
+
+		}
+		if next, foundDeeper := env.store[newVal.String()]; foundDeeper {
 			_, isFunc := next.(FunctionValue)
 			//make sure it's not a function value and so we don't recurse into an error
 			if !isFunc {
-				return getVarBinding(env, value.String(), args)
+				return getVarBinding(env, newVal.String(), args)
 			}
 		}
 		return value

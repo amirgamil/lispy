@@ -137,7 +137,7 @@ func (s SexpSymbol) Eval(env *Env, frame *StackFrame, allowThunk bool) Sexp {
 			anonFunc := SexpFunctionLiteral{name: "fn", arguments: params, body: bodyFunc.head, userfunc: nil, macro: false}
 			return anonFunc
 		}
-		fmt.Println("func name: ", s.value, " w. args: ", argList.head)
+		// fmt.Println("func name: ", s.value, " w. args: ", argList.head)
 		funcCall := SexpFunctionCall{name: s.value, arguments: argList}
 		return funcCall.Eval(env, frame, allowThunk)
 	default:
