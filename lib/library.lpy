@@ -165,6 +165,27 @@
     )
 )
 
+; appends arr2 to the end of arr1
+(define join [arr1 arr2]
+    (if (nil? arr2)
+        arr1
+        (join (append  arr1 (car arr2)) (cdr arr2))
+    )
+)
+
+; adds element to the front of the array
+(define addToFront [el arr]
+    (do
+        (define helper [arr]
+            (if (nil? arr)
+                ()
+                (cons (car arr) (helper (cdr arr)))
+            )
+        )
+        (helper (cons el arr))
+    )
+)
+
 
 ; macros
 
@@ -187,7 +208,8 @@
         
     )
 )
-
+; ex: (quasiquote (1 2 (unquote (+ 3 4)))) => (1 2 7) 
+; note, by design, don't include ' before it
 (macro quasiquote [terms]
     ; note we do cons 'list so that map is called when evaluating the macro-expansion, not on the first call
     (cons 'list 
@@ -205,11 +227,41 @@
     ) 
 )
 
+; special form of a funcCall where the last argument is a list that should be treated as parameters
+; e.g. (apply (fn 1 2 '(3 4))) => (fn 1 2 3 4)
+(macro apply [terms]
+    (do
+        (define funcCall (car terms))
+        (define helper [args]
+            (if (nil? args)
+                ()
+                (if (list? (car args))
+                    (cons (caar args) (helper (cdar args)))
+                    (cons (car args) (helper (cdr args)))
+                )
+            )
+        )
+        (cons funcCall (helper (cdr terms)))
+    )
+)
+
 ; (cond (precondition) (postcondition) (precondition2) (postcondition2)...)
 (macro cond [terms]
     (if (nil? terms)
         ()
         (list 'if (car terms) (cadr terms) (cons 'cond (cddr terms)))
+    )
+)
+;(switch val (case1 result1) (case2 result2))
+(macro switch [terms]
+    (do
+        (define match [val conditions]
+            (if (nil? conditions)
+                ()
+                (list 'if (list '= val (caar conditions)) (cdar conditions) (cons 'switch (cons val (cdr conditions))))
+            )
+        )
+        (match (car terms) (cdr terms))
     )
 )
 

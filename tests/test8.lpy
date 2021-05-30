@@ -1,0 +1,12 @@
+(define greeting [name]
+    (str "Hello " name "!")
+)
+
+(define morning []
+    (let 
+        (name (readline "Enter your name: "))
+            (greeting name)
+    )
+)
+
+(morning)

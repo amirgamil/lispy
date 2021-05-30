@@ -1,6 +1,7 @@
 package lispy
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -153,6 +154,9 @@ func Parse(tokens []Token) ([]Sexp, error) {
 func parseList(tokens []Token) (Sexp, int, error) {
 	idx := 0
 	curr := SexpPair{head: nil, tail: nil}
+	if len(tokens) == 0 {
+		return nil, 0, errors.New("Error parsing list!")
+	}
 	if tokens[idx].Token == RPAREN {
 		//return idx of 1 so we skip the RPAREN
 		return nil, 1, nil
@@ -243,7 +247,9 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 	var expr Sexp
 	var err error
 	var add int
-
+	if len(tokens) == 0 {
+		return nil, 0, errors.New("Error parsing expression!")
+	}
 	switch tokens[idx].Token {
 	case DEFINE:
 		//look ahead one to check if it's a function or just data-binding
@@ -300,7 +306,7 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 		if errorL != nil {
 			log.Fatal("Error parsing quote!")
 		}
-		expr = makeSList([]Sexp{SexpSymbol{ofType: QUOTE, value: tokens[idx].Literal}, nextExpr})
+		expr = makeSList([]Sexp{SexpSymbol{ofType: QUOTE, value: ""}, nextExpr})
 		add = toAdd
 	//eventually refactor to handle other symbols like identifiers
 	//create a map with all of these operators pre-stored and just get, or default, passing in tokentype to check if it exists
@@ -323,7 +329,6 @@ func makeSList(expressions []Sexp) Sexp {
 	if len(expressions) == 0 {
 		return nil
 	}
-
 	return consHelper(expressions[0], makeSList(expressions[1:]))
 }
 

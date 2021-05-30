@@ -1,10 +1,12 @@
 package lispy
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"math"
 	"math/rand"
+	"os"
 	"reflect"
 	"strconv"
 )
@@ -44,6 +46,13 @@ func getVarBinding(env *Env, key string, args []Sexp) Sexp {
 			//means empty list passed in
 			return SexpPair{}
 		}
+		if next, foundDeeper := env.store[value.String()]; foundDeeper {
+			_, isFunc := next.(FunctionValue)
+			//make sure it's not a function value and so we don't recurse into an error
+			if !isFunc {
+				return getVarBinding(env, value.String(), args)
+			}
+		}
 		return value
 	}
 	log.Fatal("Error, ", key, " has not previously been defined!")
@@ -78,27 +87,52 @@ func evalFunc(env *Env, s *SexpFunctionCall, allowThunk bool) Sexp {
 	newExprs := make([]Sexp, 0)
 
 	if node.defn.macro {
+		macroArgs := s.arguments
+		switch i := s.arguments.head.(type) {
+		case SexpPair:
+			quote, isQuote := i.head.(SexpSymbol)
+			//skip quote so it doesn't interfere with list manipulation in the macro
+			if isQuote && quote.value == "" {
+				pair, isPair := i.tail.(SexpPair)
+				if isPair {
+					macroArgs = pair
+				}
+			}
+		}
 		//pass the args directly, macro takes in one input so we can do this directly
-		env.store[node.defn.arguments.value[0].String()] = s.arguments
-		macroRes := node.defn.body.Eval(env, &StackFrame{}, allowThunk)
+		env.store[node.defn.arguments.value[0].String()] = macroArgs
+		macroRes := node.defn.body.Eval(env, &StackFrame{}, false)
 		//uncomment line below to see macro-expansion
-		// fmt.Println("macro => ", macroRes)
+		fmt.Println("macro => ", macroRes)
 		//evaluate the result of the macro transformed input
 		return macroRes.Eval(env, &StackFrame{}, allowThunk)
 	}
 	//otherwise not a macro, so evaluate all of the arguments before calling the function
 	if s.arguments.head != nil {
 		// fmt.Println("args: ", s.arguments)
-		for _, toEvaluate := range makeList(s.arguments) {
-			//TODO: figure why adding this in makeList is causing problems
-			if toEvaluate != nil {
-				//note pass false in case this is function call
-				evaluatedArg := toEvaluate.Eval(env, &StackFrame{}, false)
-				newExprs = append(newExprs, evaluatedArg)
-				// fmt.Println("arg: ", toEvaluate, " res: ", evaluatedArg)
+		//quote is a special form where we don't want to evaluate the args
+		if name == "quote" {
+			newExprs = makeList(s.arguments)
+		} else {
+			for _, toEvaluate := range makeList(s.arguments) {
+				//TODO: figure why adding this in makeList is causing problems
+				if toEvaluate != nil {
+					//note pass false in case this is function call
+					evaluatedArg := toEvaluate.Eval(env, &StackFrame{}, false)
+					newExprs = append(newExprs, evaluatedArg)
+					// fmt.Println("arg: ", toEvaluate, " res: ", evaluatedArg)
+				}
 			}
+			// fmt.Println("evaluated params: ", newExprs, "\n for ", s.name, "\n\n\n")
 		}
-		// fmt.Println("evaluated params: ", newExprs, "\n for ", s.name, "\n\n\n")
+
+	}
+
+	//check we have the correct number of parameters
+	//only do this if not a macro or a built-in function (most of which take a variable number of args and handle invalid ones
+	//internally)
+	if len(node.defn.arguments.value) != len(newExprs) && node.defn.userfunc == nil {
+		log.Fatal("Incorrect number of arguments passed in to ", node.defn.name)
 	}
 
 	//load the passed in data to the arguments of the function in the environment
@@ -112,11 +146,6 @@ func evalFunc(env *Env, s *SexpFunctionCall, allowThunk bool) Sexp {
 		return node.defn.userfunc(env, name, newExprs)
 	}
 
-	//check we have the correct number of parameters
-	//only do this if not a macro
-	if len(node.defn.arguments.value) != len(newExprs) {
-		log.Fatal("Incorrect number of arguments passed in to ", node.defn.name)
-	}
 	functionThunk := FunctionThunkValue{env: env, function: node}
 	if allowThunk {
 		return functionThunk
@@ -245,6 +274,48 @@ func cons(env *Env, name string, args []Sexp) Sexp {
 
 func consHelper(a Sexp, b Sexp) SexpPair {
 	return SexpPair{a, b}
+}
+
+//since quote is not stored as a special form, we need an internal function to check
+/******* quote *********/
+func isQuote(env *Env, name string, args []Sexp) Sexp {
+	if len(args) == 0 {
+		log.Fatal("Error checking quote type")
+	}
+	switch i := args[0].(type) {
+	case SexpSymbol:
+		if i.ofType == QUOTE || i.value == "quote" {
+			return SexpSymbol{ofType: TRUE, value: "true"}
+		}
+	}
+	return SexpSymbol{ofType: FALSE, value: "false"}
+}
+
+/******* readline *********/
+func readline(env *Env, name string, args []Sexp) Sexp {
+	if len(args) > 0 {
+		fmt.Print(args[0].String())
+	}
+	scanner := bufio.NewScanner(os.Stdin)
+	var val string
+	if scanner.Scan() {
+		val = scanner.Text()
+	}
+	res, err := evalHelper(val)
+	if err != nil {
+		log.Fatal("Error trying to read a line!")
+	}
+	//assume readline is only one line so only take first ast node
+	return res[0]
+}
+
+/******* string join *********/
+func str(env *Env, name string, args []Sexp) Sexp {
+	val := ""
+	for _, arg := range args {
+		val += arg.String()
+	}
+	return SexpSymbol{ofType: STRING, value: val}
 }
 
 /******* handle conditional statements *********/
@@ -443,6 +514,7 @@ func typeOf(env *Env, name string, args []Sexp) Sexp {
 	case SexpFunctionCall:
 		typeCurr = SexpSymbol{ofType: STRING, value: "funcCall"}
 	default:
+		fmt.Println(i)
 		log.Fatal("unexpected type!")
 	}
 	return typeCurr
@@ -633,6 +705,10 @@ func modulo(env *Env, name string, args []Sexp) Sexp {
 
 func binaryOperation(env *Env, name string, args []Sexp) Sexp {
 	res := args[0]
+	switch res.(type) {
+	case SexpArray, SexpPair, SexpSymbol, SexpFunctionCall, SexpFunctionLiteral:
+		log.Fatal("Invalid type passed to a binary operation!")
+	}
 	for i := 1; i < len(args); i++ {
 		//pass in new argument under consideration first for compare operation
 		switch term := res.(type) {
@@ -640,6 +716,8 @@ func binaryOperation(env *Env, name string, args []Sexp) Sexp {
 			res = numericMatchFloat(name, term, args[i])
 		case SexpInt:
 			res = numericMatchInt(name, term, args[i])
+		default:
+			log.Fatal("Invalid type passed to a binary operation!")
 
 		}
 	}

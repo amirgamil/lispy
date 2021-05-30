@@ -10,12 +10,13 @@ Here's a taste for what it can do
 ![example](docs/example.png)
 
 What Lispy supports
-- [x] Basic arithmetic operations (+, -, *, /, %, #)
-    - (# a b) means raise a to the power of b
-- [x] Relational operators (>, <, >=, <=, =) and logical operators (and, or, not)
-- [x] Bindings to variables and state, including define and let for local binding or lexical scope
-- [x] Conditionals via if, when, and cond
-- [x] Lambdas or anonymous functions via fn, functions via define
+- [x] Basic arithmetic operations (`+`, `-`, `*`, `/`, `%`, `#`)
+    - `(# a b)` means raise a to the power of b
+- [x] Relational operators (`>`, `<`, `>=`, `<=`, `=`) and logical operators (`and`, `or`, `not`å)
+- [x] Bindings to variables and state with `define`, and `let` for local binding or lexical scope
+- [x] Reading input from the user via `readline` and string concatenation via `str`
+- [x] Conditionals via `if`, `when`, and `cond`
+- [x] Lambdas or anonymous functions via `fn,` functions via `define`
 - [x] Reading Lispy code from a file
 - [x] Macros (`quasiquote`, threading via `->`. `->>`, and a host of other ones)
 - [x] Tail call optimization

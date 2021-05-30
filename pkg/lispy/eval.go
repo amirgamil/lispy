@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"reflect"
 	"strings"
 )
 
@@ -69,6 +70,9 @@ func returnDefinedFunctions() map[string]LispyUserFunction {
 	functions["rand"] = random
 	functions["number"] = number
 	functions["symbol"] = symbol
+	functions["readline"] = readline
+	functions["str"] = str
+	functions["quote?"] = isQuote
 	return functions
 }
 
@@ -96,7 +100,12 @@ func InitState() *Env {
 
 func (s SexpSymbol) Eval(env *Env, frame *StackFrame, allowThunk bool) Sexp {
 	switch s.ofType {
-	case TRUE, FALSE, STRING:
+	case TRUE, FALSE:
+		return s
+	case STRING:
+		if s.value == "" {
+			return SexpSymbol{ofType: FALSE, value: "false"}
+		}
 		return s
 	case IF:
 		frame.args = append(frame.args, getSexpSymbolFromBool(allowThunk))
@@ -128,6 +137,7 @@ func (s SexpSymbol) Eval(env *Env, frame *StackFrame, allowThunk bool) Sexp {
 			anonFunc := SexpFunctionLiteral{name: "fn", arguments: params, body: bodyFunc.head, userfunc: nil, macro: false}
 			return anonFunc
 		}
+		fmt.Println("func name: ", s.value, " w. args: ", argList.head)
 		funcCall := SexpFunctionCall{name: s.value, arguments: argList}
 		return funcCall.Eval(env, frame, allowThunk)
 	default:
@@ -215,7 +225,7 @@ func (n SexpPair) Eval(env *Env, frame *StackFrame, allowThunk bool) Sexp {
 				break
 			}
 		default:
-			// fmt.Println("default symbol ", symbol, " in list -> ", tail)
+			//quote that was parsed
 			toReturn = symbol.Eval(env, &StackFrame{args: []Sexp{tail}}, allowThunk)
 		}
 	case SexpFunctionLiteral:
@@ -255,6 +265,7 @@ func (n SexpPair) Eval(env *Env, frame *StackFrame, allowThunk bool) Sexp {
 					//just a nested list so return entire list
 					toReturn = n
 				} else {
+					fmt.Println(reflect.TypeOf(n.head))
 					log.Fatal("Error parsing")
 				}
 
@@ -293,18 +304,27 @@ func (env *Env) Eval(nodes []Sexp) []string {
 	for _, node := range nodes {
 		curr := node.Eval(env, &frame, false)
 		if curr != nil {
+			// fmt.Println("node: ", node, " with result: ", reflect.TypeOf(curr))
 			res = append(res, curr.String())
 		}
 	}
 	return res
 }
 
-//method which exposes eval to other packages which call this as an API to get a result
-func EvalSource(source string) ([]string, error) {
+func evalHelper(source string) ([]Sexp, error) {
 	tokens := Read(strings.NewReader(source))
 	ast, err := Parse(tokens)
 	if err != nil {
-		return nil, errors.New("Error parsing!")
+		return nil, errors.New("Error parsing source!")
+	}
+	return ast, nil
+}
+
+//method which exposes eval to other packages which call this as an API to get a result
+func EvalSource(source string) ([]string, error) {
+	ast, err := evalHelper(source)
+	if err != nil {
+		return nil, err
 	}
 	env := InitState()
 	return env.Eval(ast), nil
@@ -315,7 +335,7 @@ func EvalSourceIO(source io.Reader, env *Env) error {
 	tokens := Read(source)
 	ast, err := Parse(tokens)
 	if err != nil {
-		return errors.New("Error parsing!")
+		return errors.New("Error parsing source!")
 	}
 	env.Eval(ast)
 	return nil

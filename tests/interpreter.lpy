@@ -1,0 +1,76 @@
+; lispy interpreter written in lispy
+
+(define eval-expr [node env]
+    (do 
+    (cond
+        (nil? node) ()
+        (int? node) node
+        (float? node) node
+        ; variable 
+        (symbol? node) (env node)
+
+        ; list forms
+        (list? node)
+            (switch (car node)
+                ('if 
+                    (if (eval-expr (cadr node) env) 
+                    (eval-expr (car (cddr node)) env)
+                    (eval-expr (cadr (cddr node)) env))
+                )
+
+
+
+                ; evaluate function call
+                ((car node)
+                    (do
+                        (define rator (eval-expr (car node) env))
+                        ; evaluate each item in rand
+                        (define unwrapArgs [args]
+                            (if (nil? args)
+                                ()
+                                (cons (eval-expr (car args) env) (unwrapArgs (cdr args)))
+                            )
+                        )
+                        (define args (unwrapArgs (cdr node)))
+                        (apply rator args)            
+                    )
+                )
+            )
+
+        
+    )
+    )
+)
+
+; env acts as a large lambda function
+(define empty-env [node]
+    (switch node
+        ('+ +)
+        ('- -)
+        ('/ /)
+        ('* *)
+    )
+)
+
+(define eval [source]
+    (eval-expr source empty-env)
+)
+
+
+(define repl-loop [line]
+    (do
+        (println "lispy> ")
+        (define source (readline))
+        (println (eval source))
+        (repl-loop source)
+    )
+)
+;(repl-loop "")
+
+(eval '(* 1 2 3))
+;(eval '5)
+;(eval '6.0)
+;(eval '(if (false) 5 6))
+
+
+
