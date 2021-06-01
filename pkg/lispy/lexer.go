@@ -180,7 +180,15 @@ func (l *Lexer) scanToken() Token {
 		}
 
 	case ';':
-		token = l.getUntil('\n', COMMENT, false)
+		if l.peek() == ';' {
+			//current char is ; and next char is ; so advance twice
+			l.advance()
+			l.advance()
+			token = l.getUntil(';', COMMENT, false)
+		} else {
+			token = l.getUntil('\n', COMMENT, false)
+		}
+
 	case '"':
 		//skip the first "
 		l.advance()

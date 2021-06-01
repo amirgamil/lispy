@@ -9,6 +9,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"time"
 )
 
 type LispyUserFunction func(env *Env, name string, args []Sexp) Sexp
@@ -30,11 +31,8 @@ func (thunk FunctionThunkValue) Eval(env *Env, frame *StackFrame, allowThunk boo
 /******* handle definitions *********/
 //create new variable binding
 func varDefinition(env *Env, key string, args []Sexp) Sexp {
-	var value Sexp
-	for _, arg := range args {
-		value = arg.Eval(env, &StackFrame{}, false)
-		env.store[key] = value
-	}
+	value := args[0].Eval(env, &StackFrame{}, false)
+	env.store[key] = value
 	return value
 }
 
@@ -47,13 +45,13 @@ func getVarBinding(env *Env, key string, args []Sexp) Sexp {
 			return SexpPair{}
 		}
 		newVal := value
-		switch i := value.(type) {
-		case SexpPair:
-			if i.head != nil {
-				newVal = i.head
-			}
-
-		}
+		//don't remember what problem this was solving if any?
+		// switch i := value.(type) {
+		// case SexpPair:
+		// 	if i.head != nil {
+		// 		newVal = i.head
+		// 	}
+		// }
 		if next, foundDeeper := env.store[newVal.String()]; foundDeeper {
 			_, isFunc := next.(FunctionValue)
 			//make sure it's not a function value and so we don't recurse into an error
@@ -93,7 +91,6 @@ func evalFunc(env *Env, s *SexpFunctionCall, allowThunk bool) Sexp {
 	//note quite critically, we need to evaluate the result of any expression arguments BEFORE we set them
 	//(before any old values get overwritten)
 	newExprs := make([]Sexp, 0)
-
 	if node.defn.macro {
 		macroArgs := s.arguments
 		switch i := s.arguments.head.(type) {
@@ -109,11 +106,14 @@ func evalFunc(env *Env, s *SexpFunctionCall, allowThunk bool) Sexp {
 		}
 		//pass the args directly, macro takes in one input so we can do this directly
 		env.store[node.defn.arguments.value[0].String()] = macroArgs
+		// fmt.Println("macro args => ", node.defn.body)
 		macroRes := node.defn.body.Eval(env, &StackFrame{}, false)
 		//uncomment line below to see macro-expansion
-		fmt.Println("macro => ", macroRes)
+		// fmt.Println("macro => ", macroRes)
+		finalRes := macroRes.Eval(env, &StackFrame{}, allowThunk)
+		// fmt.Println(name, " res => ", finalRes)
 		//evaluate the result of the macro transformed input
-		return macroRes.Eval(env, &StackFrame{}, allowThunk)
+		return finalRes
 	}
 	//otherwise not a macro, so evaluate all of the arguments before calling the function
 	if s.arguments.head != nil {
@@ -136,16 +136,25 @@ func evalFunc(env *Env, s *SexpFunctionCall, allowThunk bool) Sexp {
 
 	}
 
+	variableNumberOfArgs := false
+	//load the passed in data to the arguments of the function in the environment
+	for i, arg := range node.defn.arguments.value {
+		//if arg has &, means it takes variable number of arguments, so create list of cons cells and set it to name pointing to variable arg
+		if arg.String() == "&" {
+			env.store[node.defn.arguments.value[i+1].String()] = makeSList(newExprs[i:])
+			variableNumberOfArgs = true
+			break
+		} else {
+			env.store[arg.String()] = newExprs[i]
+		}
+	}
+
 	//check we have the correct number of parameters
 	//only do this if not a macro or a built-in function (most of which take a variable number of args and handle invalid ones
 	//internally)
-	if len(node.defn.arguments.value) != len(newExprs) && node.defn.userfunc == nil {
+	if len(node.defn.arguments.value) != len(newExprs) && node.defn.userfunc == nil && !variableNumberOfArgs {
+		fmt.Println(len(node.defn.arguments.value), newExprs)
 		log.Fatal("Incorrect number of arguments passed in to ", node.defn.name)
-	}
-
-	//load the passed in data to the arguments of the function in the environment
-	for i, arg := range node.defn.arguments.value {
-		env.store[arg.String()] = newExprs[i]
 	}
 
 	//Call LispyUserFunction if this is a builtin function
@@ -155,6 +164,7 @@ func evalFunc(env *Env, s *SexpFunctionCall, allowThunk bool) Sexp {
 	}
 
 	functionThunk := FunctionThunkValue{env: env, function: node}
+	//if we're at a tail position inside a function body, return the thunk directly for tail call optimization
 	if allowThunk {
 		return functionThunk
 	}
@@ -195,6 +205,13 @@ func createList(env *Env, name string, args []Sexp) Sexp {
 /******** quote **********/
 func quote(env *Env, name string, args []Sexp) Sexp {
 	return args[0]
+	// switch val := args[0].(type) {
+	// case SexpPair:
+	// 	fmt.Println(val.head)
+	// 	return val.head
+	// default:
+	// 	return val
+	// }
 }
 
 //helper function to convert list of args into list of cons cells
@@ -223,9 +240,10 @@ func unwrap(arg Sexp) SexpPair {
 		//check if we only have one item
 		//some weird behavior with (car 1 2 3) not sure if needs to change
 		switch i := arg.(type) {
-		case SexpInt, SexpFloat, SexpSymbol:
+		case SexpInt, SexpFloat:
 			return SexpPair{head: SexpPair{head: i, tail: nil}, tail: nil}
 		default:
+			fmt.Println(reflect.TypeOf(arg))
 			log.Fatal("Error unwrapping for built in functions")
 		}
 	}
@@ -361,7 +379,7 @@ func conditionalStatement(env *Env, name string, args []Sexp) Sexp {
 	if condition {
 		toReturn = args[1].Eval(env, &StackFrame{}, allowThunk)
 	} else {
-		if len(args) > 2 {
+		if len(args) > 2 && args[2] != nil {
 			toReturn = args[2].Eval(env, &StackFrame{}, allowThunk)
 		} else {
 			//no provided else block despite the condition evaluating to such
@@ -376,7 +394,31 @@ func random(env *Env, name string, args []Sexp) Sexp {
 	if len(args) != 0 {
 		log.Fatal("Error generating random number")
 	}
+	//generate a random seed, otherwise the same random number will be generated
+	rand.Seed(time.Now().UnixNano())
 	return SexpFloat(rand.Float64())
+}
+
+/******* applies function to list of args similar to function applyTo in Clojure *********/
+func applyTo(env *Env, name string, args []Sexp) Sexp {
+	if len(args) < 2 {
+		log.Fatal("Error applying function to args")
+	}
+	functionLiteral, isFuncLiteral := args[0].(FunctionValue)
+	if !isFuncLiteral {
+		if env.store[args[0].String()] != nil {
+			functionLiteral, isFuncLiteral = env.store[args[0].String()].(FunctionValue)
+		}
+		if !isFuncLiteral {
+			log.Fatal("Error trying to apply a value that is not a function")
+		}
+
+	}
+	arguments, isArgs := args[1].(SexpPair)
+	if !isArgs {
+		log.Fatal("Error applyTo only operates on lists!")
+	}
+	return SexpFunctionCall{name: functionLiteral.defn.name, arguments: arguments}.Eval(env, &StackFrame{}, false)
 }
 
 /******* handle type conversions for non-list *********/
@@ -570,9 +612,10 @@ func relationalOperator(env *Env, name string, args []Sexp) Sexp {
 		case SexpPair:
 			result = relationalOperatorMatchList(name, i, curr)
 		default:
+			fmt.Println(i)
 			log.Fatal("Error, unexpected type in relational operator")
 		}
-		if result == false {
+		if !result {
 			tokenType = FALSE
 			break
 		}
@@ -713,9 +756,13 @@ func modulo(env *Env, name string, args []Sexp) Sexp {
 
 func binaryOperation(env *Env, name string, args []Sexp) Sexp {
 	res := args[0]
-	switch res.(type) {
-	case SexpArray, SexpPair, SexpSymbol, SexpFunctionCall, SexpFunctionLiteral:
+	switch i := res.(type) {
+	case SexpArray, SexpPair, SexpFunctionCall, SexpFunctionLiteral:
 		log.Fatal("Invalid type passed to a binary operation!")
+	case SexpSymbol:
+		if i.value == "" {
+			return binaryOperation(env, name, args[1:])
+		}
 	}
 	for i := 1; i < len(args); i++ {
 		//pass in new argument under consideration first for compare operation
@@ -739,6 +786,10 @@ func numericMatchInt(name string, x SexpInt, y Sexp) Sexp {
 		res = numericOpInt(name, x, i)
 	case SexpFloat:
 		res = numericOpFloat(name, SexpFloat(x), i)
+	case SexpSymbol:
+		if i.value == "" {
+			return x
+		}
 	default:
 		fmt.Println(y)
 		log.Fatal("Error adding two numbers!")
@@ -753,6 +804,10 @@ func numericMatchFloat(name string, x SexpFloat, y Sexp) Sexp {
 		res = numericOpFloat(name, x, SexpFloat(i))
 	case SexpFloat:
 		res = numericOpFloat(name, x, i)
+	case SexpSymbol:
+		if i.value == "" {
+			return x
+		}
 	default:
 		log.Fatal("Error adding two numbers!")
 	}

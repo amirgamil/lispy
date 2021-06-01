@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"reflect"
 	"strings"
 )
 
@@ -73,6 +72,7 @@ func returnDefinedFunctions() map[string]LispyUserFunction {
 	functions["readline"] = readline
 	functions["str"] = str
 	functions["quote?"] = isQuote
+	functions["applyTo"] = applyTo
 	return functions
 }
 
@@ -260,14 +260,15 @@ func (n SexpPair) Eval(env *Env, frame *StackFrame, allowThunk bool) Sexp {
 				//by artificially constructing a list as such
 				toReturn = (SexpPair{head: funcLiteral, tail: n.tail}).Eval(env, frame, allowThunk)
 			} else {
-				quote, isQuote := n.head.(SexpSymbol)
-				if isQuote && quote.ofType == QUOTE {
-					//just a nested list so return entire list
-					toReturn = n
-				} else {
-					fmt.Println(reflect.TypeOf(n.head))
-					log.Fatal("Error parsing")
-				}
+				// quote, isQuote := n.head.(SexpSymbol)
+				toReturn = n
+				// if isQuote && quote.ofType == QUOTE {
+				// 	//just a nested list so return entire list
+				// 	toReturn = n
+				// } else {
+				// 	fmt.Println(n.head)
+				// 	log.Fatal("Error parsing")
+				// }
 
 			}
 		} else {

@@ -63,7 +63,9 @@ func (l SexpPair) String() string {
 	for {
 		switch pair.tail.(type) {
 		case SexpPair:
-			str += pair.head.String() + " "
+			if pair.head != nil {
+				str += pair.head.String() + " "
+			}
 			pair = pair.tail.(SexpPair)
 			continue
 		}
@@ -306,7 +308,7 @@ func parseExpr(tokens []Token) (Sexp, int, error) {
 		if errorL != nil {
 			log.Fatal("Error parsing quote!")
 		}
-		expr = makeSList([]Sexp{SexpSymbol{ofType: QUOTE, value: ""}, nextExpr})
+		expr = makeSList([]Sexp{SexpSymbol{ofType: QUOTE, value: "quote"}, nextExpr})
 		add = toAdd
 	//eventually refactor to handle other symbols like identifiers
 	//create a map with all of these operators pre-stored and just get, or default, passing in tokentype to check if it exists

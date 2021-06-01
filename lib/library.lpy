@@ -116,7 +116,7 @@
 
 ; generate unique, not previously defined symbol
 (define gensym []
-    (symbol (* 1000 (rand)))
+    (symbol (str "var" (* 10000 (rand))))
 )
 
 ; get nth item in list (0-indexed)
@@ -189,6 +189,7 @@
 
 ; macros
 
+
 ; (when (precondition) (postcondition))
 (macro when [terms]
     (list 'if (car terms) (cadr terms))
@@ -197,9 +198,8 @@
 ; local bindings within lexical scope
 (macro let [terms]
     (do
-        (define decl (car terms))
-        (define declname (car decl))
-        (define declval (cdr decl))
+        (define declname (caar terms))
+        (define declval (cdar terms))
         (define body (cdr terms))
         (list 
             (list 'fn [declname] body)
@@ -219,7 +219,7 @@
                     (if (= (car term) 'unquote) 
                         (cadr term)
                         (list 'quasiquote term)
-                    ) 
+                    )
                     (list 'quote term)
                 )
             )
@@ -228,8 +228,8 @@
 )
 
 ; special form of a funcCall where the last argument is a list that should be treated as parameters
-; e.g. (apply (fn 1 2 '(3 4))) => (fn 1 2 3 4)
-(macro apply [terms]
+; e.g. (apply fn 1 2 (3 4))
+(define apply [& terms]
     (do
         (define funcCall (car terms))
         (define helper [args]
@@ -241,9 +241,11 @@
                 )
             )
         )
-        (cons funcCall (helper (cdr terms)))
+
+        (applyTo funcCall (helper (cdr terms)))
     )
 )
+
 
 ; (cond (precondition) (postcondition) (precondition2) (postcondition2)...)
 (macro cond [terms]
@@ -252,16 +254,21 @@
         (list 'if (car terms) (cadr terms) (cons 'cond (cddr terms)))
     )
 )
+
+
 ;(switch val (case1 result1) (case2 result2))
-(macro switch [terms]
+(macro switch [statements]
     (do
-        (define match [val conditions]
+        (define val (gensym))
+        (define match [conditions]
             (if (nil? conditions)
-                ()
-                (list 'if (list '= val (caar conditions)) (cdar conditions) (cons 'switch (cons val (cdr conditions))))
+                (list)
+                (list 'if (list '= val (caar conditions)) (cdar conditions) (match (cdr conditions)))
             )
         )
-        (match (car terms) (cdr terms))
+        (let (val (car statements))
+            (match (cdr statements))
+        )
     )
 )
 
