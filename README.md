@@ -9,6 +9,9 @@ Here's a taste for what it can do
 
 ![example](docs/example.png)
 
+You can tour the language and run it in the browser [here](http://lispy.amirbolous.com/)
+![tour](docs/img.png)
+
 What Lispy supports
 - [x] Basic arithmetic operations (`+`, `-`, `*`, `/`, `%`, `#`)
     - `(# a b)` means raise a to the power of b
