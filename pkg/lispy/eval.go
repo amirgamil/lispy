@@ -13,6 +13,8 @@ type Env struct {
 	//pointer to the environment with globals
 	global *Env
 	store  map[string]Value
+	//used to track stack limit for safety
+	steps int
 }
 
 //Value is a reference to any Value in a Lispy program
@@ -42,6 +44,8 @@ func (env Env) String() string {
 func (f FunctionValue) String() string {
 	return fmt.Sprintf("function value: %s", f.defn.String())
 }
+
+const maxSteps = 200000
 
 func returnDefinedFunctions() map[string]LispyUserFunction {
 	functions := make(map[string]LispyUserFunction)
@@ -83,6 +87,7 @@ func InitState() *Env {
 	for key, function := range returnDefinedFunctions() {
 		env.store[key] = makeUserFunction(key, function)
 	}
+	env.steps = maxSteps
 	//load library functions
 	file, err := os.Open("lib/library.lpy")
 	if err != nil {
@@ -99,6 +104,7 @@ func InitState() *Env {
 }
 
 func (s SexpSymbol) Eval(env *Env, frame *StackFrame, allowThunk bool) Sexp {
+	dec(env)
 	switch s.ofType {
 	case TRUE, FALSE:
 		return s
@@ -152,6 +158,7 @@ func (s SexpFunctionLiteral) Eval(env *Env, frame *StackFrame, allowThunk bool) 
 	//append name of function to end of args
 	frame.args = append(frame.args, SexpSymbol{ofType: STRING, value: s.name})
 	funcDefinition.Eval(env, frame, allowThunk)
+	dec(env)
 	return funcDefinition
 }
 
@@ -159,10 +166,12 @@ func (s SexpFunctionCall) Eval(env *Env, frame *StackFrame, allowThunk bool) Sex
 	//each call should get its own environment for recursion to work
 	functionCallEnv := new(Env)
 	functionCallEnv.store = make(map[string]Value)
+	functionCallEnv.steps = env.steps
 	//copy globals
 	for key, element := range env.store {
 		functionCallEnv.store[key] = element
 	}
+	dec(env)
 	return evalFunc(functionCallEnv, &s, allowThunk)
 }
 
@@ -279,6 +288,7 @@ func (n SexpPair) Eval(env *Env, frame *StackFrame, allowThunk bool) Sexp {
 	default:
 		toReturn = n
 	}
+	dec(env)
 	return toReturn
 }
 
@@ -287,15 +297,27 @@ func (arr SexpArray) Eval(env *Env, frame *StackFrame, allowThunk bool) Sexp {
 	for index := range arr.value {
 		new = append(new, arr.value[index].Eval(env, frame, allowThunk))
 	}
+	dec(env)
 	return SexpArray{ofType: ARRAY, value: new}
 }
 
 func (s SexpFloat) Eval(env *Env, frame *StackFrame, allowThunk bool) Sexp {
+	dec(env)
 	return s
 }
 
 func (s SexpInt) Eval(env *Env, frame *StackFrame, allowThunk bool) Sexp {
+	dec(env)
 	return s
+}
+
+func dec(env *Env) {
+	if env.steps != maxSteps {
+		env.steps -= 1
+		if env.steps < 0 {
+			log.Fatal("Reached maximum recursion depth :(")
+		}
+	}
 }
 
 //evaluates and interprets our AST
@@ -328,6 +350,8 @@ func EvalSource(source string) ([]string, error) {
 		return nil, err
 	}
 	env := InitState()
+	//limit size of stack / number of steps for safety
+	env.steps = 1000
 	return env.Eval(ast), nil
 }
 

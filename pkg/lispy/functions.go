@@ -70,6 +70,7 @@ func (funcVal FunctionValue) Eval(env *Env, frame *StackFrame, allowThunk bool) 
 	name := frame.args[len(frame.args)-1].String()
 	//FunctionValue is a compile-time representation of a function
 	env.store[name] = funcVal
+	dec(env)
 	//fix this
 	return SexpSymbol{ofType: STRING, value: "#user/" + name}
 }
@@ -87,7 +88,6 @@ func evalFunc(env *Env, s *SexpFunctionCall, allowThunk bool) Sexp {
 		//don't know how deep the reference so need to recurse
 		return evalFunc(env, s, allowThunk)
 	}
-
 	//note quite critically, we need to evaluate the result of any expression arguments BEFORE we set them
 	//(before any old values get overwritten)
 	newExprs := make([]Sexp, 0)
