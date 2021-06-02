@@ -1,4 +1,3 @@
-;macros
 (each (seq 18)
     (fn [x] 
         (cond
