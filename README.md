@@ -10,11 +10,12 @@ Here's a taste for what it can do
 ![example](docs/example.png)
 
 You can tour the language and run it in the browser [here](http://lispy.amirbolous.com/)
+
 ![tour](docs/img.png)
 
 You can find the source code for this sandbox [here](https://github.com/amirgamil/lispysandbox).
 
-What Lispy supports
+## What Lispy supports
 - [x] Basic arithmetic operations (`+`, `-`, `*`, `/`, `%`, `#`)
     - `(# a b)` means raise a to the power of b
 - [x] Relational operators (`>`, `<`, `>=`, `<=`, `=`) and logical operators (`and`, `or`, `not`å)
@@ -26,14 +27,14 @@ What Lispy supports
 - [x] Macros (`quasiquote`, threading via `->`. `->>`, and a host of other ones)
 - [x] Tail call optimization
 - [x] Lists with a core library that supports functional operations like `map`, `reduce`, `range` and several more 
-- [x] Hashmaps 
+- [x] Hash maps 
 
 ## High Level Overview
 Lispy is written as a tree-walk interpreter in Go with a recursive-descent parser. It also has a separate lexer, although most Lisp dialects are simple enough to parse that the lexing and parsing can be combined into one stage.
 
 Because Lispy is interpreted, not compiled, it does not have a separate macro-expansion stage (that would typically be done before code is evaluated). Instead, Lispy handles macros as special functions, which it evaluates twice: once to generate the syntax of the code, and the second to run this generated syntax (as a macro would).
 
-The interpreter code can be found at `pkg/lispy/`, the integration tests can be found at `tests/` and the main Lispy library at `lib/lispy.lpy`. Here's a short sample lispy in action:
+The interpreter code can be found at `pkg/lispy/`, the integration tests can be found at `tests/` and the main Lispy library at `lib/lispy.lpy`. Here's a short sample of lispy in action:
 
 ```
 (each (seq 18)
