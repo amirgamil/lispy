@@ -3,9 +3,7 @@ package lispy
 import (
 	"errors"
 	"fmt"
-	"io"
 	"log"
-	"os"
 	"strings"
 )
 
@@ -89,12 +87,7 @@ func InitState() *Env {
 	}
 	env.steps = maxSteps
 	//load library functions
-	file, err := os.Open("lib/library.lpy")
-	if err != nil {
-		log.Fatal("Error opening file to read! ", err)
-	}
-	defer file.Close()
-	errLib := EvalSourceIO(file, env)
+	errLib := EvalSourceIO(lib, env)
 	if errLib != nil {
 		log.Fatal("Error loading library packages of lispy")
 	}
@@ -352,9 +345,8 @@ func EvalSource(source string) ([]string, error) {
 }
 
 //used to load library packages into the env
-func EvalSourceIO(source io.Reader, env *Env) error {
-	tokens := Read(source)
-	ast, err := Parse(tokens)
+func EvalSourceIO(source string, env *Env) error {
+	ast, err := evalHelper(source)
 	if err != nil {
 		return errors.New("Error parsing source!")
 	}

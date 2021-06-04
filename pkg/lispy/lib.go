@@ -1,3 +1,5 @@
+package lispy
+
 //necessary evil to include non-go file in a package to expose the API other apps can use to run lispy code
 const lib = `
 (define caar [x] (car (car x)))
