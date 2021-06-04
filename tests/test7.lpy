@@ -1,10 +1,10 @@
 (each (seq 18)
     (fn [x] 
         (cond
-            (and (divisible? x 3) (divisible? x 5)) (println "FizzBuzz!")
-            (divisible? x 3) (println "Fizz")
-            (divisible? x 5) (println "Buzz")
-            (true) (println x)
+            (and (divisible? x 3) (divisible? x 5)) "FizzBuzz"
+            (divisible? x 3) "Fizz"
+            (divisible? x 5) "Buzz"
+            (true) x
         )
     )
 )

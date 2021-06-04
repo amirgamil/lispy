@@ -10,8 +10,8 @@ import (
 )
 
 type Env struct {
-	//pointer to the environment with globals
-	global *Env
+	//pointer to parent environment
+	parent *Env
 	store  map[string]Value
 	//used to track stack limit for safety
 	steps int
@@ -98,8 +98,6 @@ func InitState() *Env {
 	if errLib != nil {
 		log.Fatal("Error loading library packages of lispy")
 	}
-	//this is the global reference, so set the pointer to nil
-	env.global = nil
 	return env
 }
 
@@ -125,7 +123,7 @@ func (s SexpSymbol) Eval(env *Env, frame *StackFrame, allowThunk bool) Sexp {
 		if len(frame.args) == 0 {
 			return getVarBinding(env, s.value, frame.args)
 		}
-		//otherwise assume this is a function call - this is MACROEXPANSION CODE!!
+		//otherwise assume this is a function call
 		argList, isList := frame.args[0].(SexpPair)
 		if !isList {
 			log.Fatal("Error trying to parse arguments for function call")
@@ -165,12 +163,10 @@ func (s SexpFunctionLiteral) Eval(env *Env, frame *StackFrame, allowThunk bool) 
 func (s SexpFunctionCall) Eval(env *Env, frame *StackFrame, allowThunk bool) Sexp {
 	//each call should get its own environment for recursion to work
 	functionCallEnv := new(Env)
-	functionCallEnv.store = make(map[string]Value)
+	//copy store for speed, otherwise keep recursing to parents
+	functionCallEnv.store = env.store
 	functionCallEnv.steps = env.steps
-	//copy globals
-	for key, element := range env.store {
-		functionCallEnv.store[key] = element
-	}
+	functionCallEnv.parent = env
 	dec(env)
 	return evalFunc(functionCallEnv, &s, allowThunk)
 }

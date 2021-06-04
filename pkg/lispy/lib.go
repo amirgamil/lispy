@@ -1,3 +1,5 @@
+//necessary evil to include non-go file in a package to expose the API other apps can use to run lispy code
+const lib = `
 (define caar [x] (car (car x)))
 (define cadr [x] (car (cdr x)))
 (define cdar [x] (cdr (car x)))
@@ -375,7 +377,4 @@
     )
 )
 
-
-
-
-
+`

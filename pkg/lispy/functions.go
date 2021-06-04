@@ -44,22 +44,17 @@ func getVarBinding(env *Env, key string, args []Sexp) Sexp {
 			//means empty list passed in
 			return SexpPair{}
 		}
-		newVal := value
-		//don't remember what problem this was solving if any?
-		// switch i := value.(type) {
-		// case SexpPair:
-		// 	if i.head != nil {
-		// 		newVal = i.head
+		// newVal := value
+		// if next, foundDeeper := env.store[newVal.String()]; foundDeeper {
+		// 	_, isFunc := next.(FunctionValue)
+		// 	//make sure it's not a function value and so we don't recurse into an error
+		// 	if !isFunc {
+		// 		return getVarBinding(env, newVal.String(), args)
 		// 	}
 		// }
-		if next, foundDeeper := env.store[newVal.String()]; foundDeeper {
-			_, isFunc := next.(FunctionValue)
-			//make sure it's not a function value and so we don't recurse into an error
-			if !isFunc {
-				return getVarBinding(env, newVal.String(), args)
-			}
-		}
 		return value
+	} else if env.parent != nil {
+		return getVarBinding(env.parent, key, args)
 	}
 	log.Fatal("Error, ", key, " has not previously been defined!")
 	return nil
@@ -80,13 +75,10 @@ func evalFunc(env *Env, s *SexpFunctionCall, allowThunk bool) Sexp {
 	node, isFuncLiteral := env.store[name].(FunctionValue)
 	if !isFuncLiteral {
 		//check if this is a reference to another function / variable
-		funcName, isVar := env.store[s.name].(Value)
-		if !isVar {
+		node, isFuncLiteral = getVarBinding(env, name, []Sexp{}).(FunctionValue)
+		if !isFuncLiteral {
 			log.Fatal("Error, badly defined function trying to be called: ", s.name)
 		}
-		s.name = funcName.String()
-		//don't know how deep the reference so need to recurse
-		return evalFunc(env, s, allowThunk)
 	}
 	//note quite critically, we need to evaluate the result of any expression arguments BEFORE we set them
 	//(before any old values get overwritten)
@@ -238,12 +230,11 @@ func unwrap(arg Sexp) SexpPair {
 	pair1, isPair1 := arg.(SexpPair)
 	if !isPair1 {
 		//check if we only have one item
-		//some weird behavior with (car 1 2 3) not sure if needs to change
 		switch i := arg.(type) {
-		case SexpInt, SexpFloat:
+		case SexpInt, SexpFloat, SexpSymbol, FunctionValue:
 			return SexpPair{head: SexpPair{head: i, tail: nil}, tail: nil}
 		default:
-			fmt.Println(reflect.TypeOf(arg))
+			fmt.Println(reflect.TypeOf(arg), arg)
 			log.Fatal("Error unwrapping for built in functions")
 		}
 	}
@@ -315,6 +306,26 @@ func isQuote(env *Env, name string, args []Sexp) Sexp {
 		}
 	}
 	return SexpSymbol{ofType: FALSE, value: "false"}
+}
+
+/******* swap *************/
+//note swap only works for lists!
+func swap(env *Env, name string, args []Sexp) Sexp {
+	_, isList := args[0].(SexpPair)
+	if !isList {
+		log.Fatal("All objects are immutabale besides lists, cannot set a non-list!")
+	}
+	return nil
+}
+
+//helper method for set
+func setValWhileKeyExists(env *Env, key string, val Value) {
+	if _, found := env.store[key]; found {
+		env.store[key] = val
+		if env.parent != nil {
+			setValWhileKeyExists(env.parent, key, val)
+		}
+	}
 }
 
 /******* readline *********/

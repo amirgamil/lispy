@@ -1,4 +1,5 @@
 ; metacircular lispy interpreter written in lispy
+; Ch. 4 of Structure and Interpretation of Computer Programs, 2nd ed was helpful and Klisp (https://github.com/thesephist/klisp)
 
 (define eval-expr [node env]
     (cond
@@ -6,17 +7,18 @@
         (int? node) node
         (float? node) node
         ; variable 
-        (symbol? node) (env node)
+        (symbol? node) (get env node)
 
         ; list forms
         (list? node)
             (switch (car node)
+                ('quote node)
                 ('if 
                     (if (eval-expr (cadr node) env) 
                     (eval-expr (car (cddr node)) env)
                     (eval-expr (cadr (cddr node)) env))
                 )
-
+                ('define (add env (cadr node) (eval-expr (car (cddr node)) env)))
                 ('fn
                     ((fn [x] ())
                     
@@ -38,24 +40,16 @@
         
     )
 )
-(define eval-apply [procedure arguments]
-    ()
-)
 
 
-(define apply-primitve [procedure arguments]
-    ()
-)
 
-
-; env acts as a large lambda function
-(define empty-env [node]
-    (switch node
-        ('+ +)
-        ('- -)
-        ('/ /)
-        ('* *)
-        ('= =)
+(define empty-env 
+    (hash-map
+        '+ +
+        '- -
+        '/ /
+        '* *
+        '= =
     )
 )
 
@@ -73,7 +67,7 @@
     )
 )
 (repl-loop "")
-
+;(eval '(define a 5))
 ;(eval '(* 1 2))
 ;(eval '5)
 ;(eval '6.0)
