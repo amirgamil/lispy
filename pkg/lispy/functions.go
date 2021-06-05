@@ -153,7 +153,10 @@ func evalFunc(env *Env, s *SexpFunctionCall, allowThunk bool) Sexp {
 	if node.defn.userfunc != nil && node.defn.body == nil {
 		return node.defn.userfunc(env, name, newExprs)
 	}
-
+	// if name == "set-new-env" {
+	// 	fmt.Println("here")
+	// }
+	// fmt.Println(name)
 	functionThunk := FunctionThunkValue{env: env, function: node}
 	//if we're at a tail position inside a function body, return the thunk directly for tail call optimization
 	if allowThunk {
@@ -170,7 +173,7 @@ func unwrapThunks(functionThunk FunctionThunkValue) Sexp {
 	for isTail {
 		funcResult = functionThunk.function.defn.body.Eval(functionThunk.env, &StackFrame{}, true)
 		functionThunk, isTail = funcResult.(FunctionThunkValue)
-		// fmt.Println("cheeky -> ", isTail, " ", funcResult)
+		//fmt.Println("cheeky -> ", isTail, " ", funcResult)
 	}
 	return funcResult
 }
@@ -491,8 +494,8 @@ func symbol(env *Env, name string, args []Sexp) Sexp {
 /******* handle println statements *********/
 func printlnStatement(env *Env, name string, args []Sexp) Sexp {
 	for _, arg := range args {
-		fmt.Print(arg.String(), " ")
-		//return arg
+		//fmt.Print(arg.String(), " ")
+		return arg
 	}
 	fmt.Println()
 	return nil

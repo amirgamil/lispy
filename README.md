@@ -28,7 +28,7 @@ You can find the source code for this sandbox [here](https://github.com/amirgami
 - [x] Tail call optimization
 - [x] Lists with a core library that supports functional operations like `map`, `reduce`, `range` and several more 
 - [x] Hash maps 
-- [x] A meta-circular interpreter to run a (more barebones) version of itself at `tests/interpreter.py` 
+- [x] A meta-circular interpreter to run a (more barebones) version of itself at `tests/interpreter.lpy` 
 
 
 ## High Level Overview

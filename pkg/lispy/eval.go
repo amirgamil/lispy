@@ -117,7 +117,6 @@ func (s SexpSymbol) Eval(env *Env, frame *StackFrame, allowThunk bool) Sexp {
 		if len(frame.args) == 0 {
 			return getVarBinding(env, s.value, frame.args)
 		} else if s.value == "swap" {
-			fmt.Println("oi", s.value)
 			return swap(env, s.value, frame.args)
 		}
 		//otherwise assume this is a function call
@@ -221,7 +220,13 @@ func (n SexpPair) Eval(env *Env, frame *StackFrame, allowThunk bool) Sexp {
 				log.Fatal("Error trying to interpret do statements")
 			}
 			for {
-				toReturn = tail.head.Eval(env, frame, allowThunk)
+				//need to set allowThunk to true only if this is the last expression to execute in the do statement
+				if tail.tail != nil {
+					toReturn = tail.head.Eval(env, frame, false)
+				} else {
+					toReturn = tail.head.Eval(env, frame, allowThunk)
+				}
+
 				switch tail.tail.(type) {
 				case SexpPair:
 					tail = tail.tail.(SexpPair)

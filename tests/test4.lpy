@@ -5,7 +5,9 @@
 (define sub [n]
     (if (= 0 n)
         (println "Done!")
-        (sub (dec n))
+        (do
+            (sub (dec n))   
+        )
     )
 )
 
