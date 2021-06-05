@@ -66,8 +66,8 @@ func (funcVal FunctionValue) Eval(env *Env, frame *StackFrame, allowThunk bool) 
 	//FunctionValue is a compile-time representation of a function
 	env.store[name] = funcVal
 	dec(env)
-	//fix this
-	return SexpSymbol{ofType: STRING, value: "#user/" + name}
+	list := []Sexp{SexpSymbol{ofType: STRING, value: funcVal.defn.name}, funcVal.defn.arguments, funcVal.defn.body}
+	return makeSList(list)
 }
 
 func evalFunc(env *Env, s *SexpFunctionCall, allowThunk bool) Sexp {
@@ -197,13 +197,6 @@ func createList(env *Env, name string, args []Sexp) Sexp {
 /******** quote **********/
 func quote(env *Env, name string, args []Sexp) Sexp {
 	return args[0]
-	// switch val := args[0].(type) {
-	// case SexpPair:
-	// 	fmt.Println(val.head)
-	// 	return val.head
-	// default:
-	// 	return val
-	// }
 }
 
 //helper function to convert list of args into list of cons cells
@@ -231,8 +224,14 @@ func unwrap(arg Sexp) SexpPair {
 	if !isPair1 {
 		//check if we only have one item
 		switch i := arg.(type) {
-		case SexpInt, SexpFloat, SexpSymbol, FunctionValue:
+		case SexpInt, SexpFloat, SexpArray, SexpSymbol, FunctionValue:
 			return SexpPair{head: SexpPair{head: i, tail: nil}, tail: nil}
+		case SexpFunctionLiteral:
+			argList := makeSList(i.arguments.value)
+			//set up in list format
+			list := makeSList([]Sexp{SexpSymbol{ofType: STRING, value: i.name}, argList, i.body})
+			listPair, _ := list.(SexpPair)
+			return listPair
 		default:
 			fmt.Println(reflect.TypeOf(arg), arg)
 			log.Fatal("Error unwrapping for built in functions")
@@ -251,7 +250,7 @@ func car(env *Env, name string, args []Sexp) Sexp {
 	switch i := pair1.head.(type) {
 	case SexpPair:
 		return i.head
-	case SexpInt, SexpFloat:
+	case SexpInt, SexpFloat, SexpSymbol, SexpArray:
 		return i
 	default:
 		return nil
@@ -271,7 +270,10 @@ func cdr(env *Env, name string, args []Sexp) Sexp {
 		}
 		return i.tail
 	case SexpInt, SexpFloat, SexpSymbol:
-		return SexpPair{}
+		if pair1.tail == nil {
+			return SexpPair{}
+		}
+		return pair1.tail
 	default:
 		fmt.Println(reflect.TypeOf(i))
 		log.Fatal("argument 0 of cdr has wrong type!")
@@ -311,11 +313,21 @@ func isQuote(env *Env, name string, args []Sexp) Sexp {
 /******* swap *************/
 //note swap only works for lists!
 func swap(env *Env, name string, args []Sexp) Sexp {
-	_, isList := args[0].(SexpPair)
-	if !isList {
-		log.Fatal("All objects are immutabale besides lists, cannot set a non-list!")
+	if len(args) == 0 {
+		log.Fatal("Error trying to swap element")
 	}
-	return nil
+	//enforce swap only for lists
+	list, isList := args[0].(SexpPair)
+	if !isList {
+		log.Fatal("Error trying to parse arguments of swap")
+	}
+	newList, isNewList := list.tail.(SexpPair)
+	if !isNewList {
+		log.Fatal("Error swapping non-list!")
+	}
+	newVal := newList.head.Eval(env, &StackFrame{}, false)
+	setValWhileKeyExists(env, list.head.String(), newVal)
+	return newVal
 }
 
 //helper method for set
@@ -328,6 +340,24 @@ func setValWhileKeyExists(env *Env, key string, val Value) {
 	}
 }
 
+/******* readstring *******/
+//reads one object from a string
+func readstring(env *Env, name string, args []Sexp) Sexp {
+	if len(args) < 1 {
+		log.Fatal("Error trying to read object from tring!")
+	}
+	stringObj, isString := args[0].(SexpSymbol)
+	if !isString || stringObj.ofType != STRING {
+		log.Fatal("Error trying to read an object from a non-string!")
+	}
+	res, err := evalHelper(stringObj.value)
+	if err != nil {
+		log.Fatal("Error trying to parse an object from a string !")
+	}
+	//readstring only reads first object
+	return res[0]
+}
+
 /******* readline *********/
 func readline(env *Env, name string, args []Sexp) Sexp {
 	if len(args) > 0 {
@@ -338,12 +368,8 @@ func readline(env *Env, name string, args []Sexp) Sexp {
 	if scanner.Scan() {
 		val = scanner.Text()
 	}
-	res, err := evalHelper(val)
-	if err != nil {
-		log.Fatal("Error trying to read a line!")
-	}
-	//assume readline is only one line so only take first ast node
-	return res[0]
+
+	return SexpSymbol{ofType: STRING, value: val}
 }
 
 /******* string join *********/
@@ -464,9 +490,8 @@ func symbol(env *Env, name string, args []Sexp) Sexp {
 /******* handle println statements *********/
 func printlnStatement(env *Env, name string, args []Sexp) Sexp {
 	for _, arg := range args {
-		res := arg.Eval(env, &StackFrame{}, false)
-		fmt.Print(res.String(), " ")
-		// return res
+		fmt.Print(arg.String(), " ")
+		//return arg
 	}
 	fmt.Println()
 	return nil
@@ -570,10 +595,8 @@ func typeOf(env *Env, name string, args []Sexp) Sexp {
 		}
 	case SexpSymbol:
 		typeCurr = SexpSymbol{ofType: STRING, value: "symbol"}
-	case SexpFunctionLiteral:
-		typeCurr = SexpSymbol{ofType: STRING, value: "funcLiteral"}
-	case SexpFunctionCall:
-		typeCurr = SexpSymbol{ofType: STRING, value: "funcCall"}
+	case SexpFunctionLiteral, SexpFunctionCall:
+		typeCurr = SexpSymbol{ofType: STRING, value: "list"}
 	default:
 		fmt.Println(i)
 		log.Fatal("unexpected type!")
@@ -622,8 +645,10 @@ func relationalOperator(env *Env, name string, args []Sexp) Sexp {
 			result = relationalOperatorMatchSymbol(name, i, curr)
 		case SexpPair:
 			result = relationalOperatorMatchList(name, i, curr)
+		case SexpFunctionLiteral:
+			result = relationalOperatorMatchLiteral(name, i, curr)
 		default:
-			fmt.Println(i)
+			fmt.Println(args)
 			log.Fatal("Error, unexpected type in relational operator")
 		}
 		if !result {
@@ -632,6 +657,17 @@ func relationalOperator(env *Env, name string, args []Sexp) Sexp {
 		}
 	}
 	return SexpSymbol{ofType: tokenType, value: getBoolFromString(result)}
+}
+
+func relationalOperatorMatchLiteral(name string, x SexpFunctionLiteral, y Sexp) bool {
+	res := true
+	switch i := y.(type) {
+	case SexpFunctionLiteral:
+		res = i.name == x.name
+	default:
+		res = false
+	}
+	return res
 }
 
 func relationalOperatorMatchList(name string, x SexpPair, y Sexp) bool {

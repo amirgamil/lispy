@@ -75,6 +75,7 @@ func returnDefinedFunctions() map[string]LispyUserFunction {
 	functions["str"] = str
 	functions["quote?"] = isQuote
 	functions["applyTo"] = applyTo
+	functions["readstring"] = readstring
 	return functions
 }
 
@@ -115,6 +116,8 @@ func (s SexpSymbol) Eval(env *Env, frame *StackFrame, allowThunk bool) Sexp {
 		//if no argument then it's a variable
 		if len(frame.args) == 0 {
 			return getVarBinding(env, s.value, frame.args)
+		} else if s.value == "swap" {
+			return swap(env, s.value, frame.args)
 		}
 		//otherwise assume this is a function call
 		argList, isList := frame.args[0].(SexpPair)
@@ -157,7 +160,10 @@ func (s SexpFunctionCall) Eval(env *Env, frame *StackFrame, allowThunk bool) Sex
 	//each call should get its own environment for recursion to work
 	functionCallEnv := new(Env)
 	//copy store for speed, otherwise keep recursing to parents
-	functionCallEnv.store = env.store
+	functionCallEnv.store = make(map[string]Value)
+	for key, element := range env.store {
+		functionCallEnv.store[key] = element
+	}
 	functionCallEnv.steps = env.steps
 	functionCallEnv.parent = env
 	dec(env)
@@ -340,7 +346,7 @@ func EvalSource(source string) ([]string, error) {
 	}
 	env := InitState()
 	//limit size of stack / number of steps for safety
-	env.steps = 1000
+	env.steps = 7000
 	return env.Eval(ast), nil
 }
 

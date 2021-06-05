@@ -1,5 +1,4 @@
-; metacircular lispy interpreter written in lispy
-; Ch. 4 of Structure and Interpretation of Computer Programs, 2nd ed was helpful and Klisp (https://github.com/thesephist/klisp)
+; metacircular lispy interpreter written in lispy with a repl
 
 (define eval-expr [node env]
     (cond
@@ -18,10 +17,18 @@
                     (eval-expr (car (cddr node)) env)
                     (eval-expr (cadr (cddr node)) env))
                 )
-                ('define (add env (cadr node) (eval-expr (car (cddr node)) env)))
+                ('define (add-env (cadr node) (eval-expr (car (cddr node)) env)))
                 ('fn
-                    ((fn [x] ())
-                    
+                    (do
+                        (define params (cadr node))
+                        (define body (car (cddr node)))
+                        ; return a function which will be the operator when apply is called
+                        (fn [& args]
+                            (do
+                                (set-new-env params args)
+                                (eval-expr body env)   
+                            )
+                        )
                     )
                 )
 
@@ -29,21 +36,44 @@
                 ; evaluate function call
                 ((car node)
                     (do
-                        (define rator (car node))
-                        (define rand (cdr node))
-                        ; evaluate each item in rand
-                        (apply rator rand)
+                        (define operator (eval-expr (car node) env))
+                        (define operands (cdr node))
+                        (if (= (caar node) 'fn)
+                            (operator (apply-compound env operands))
+                            (apply operator (apply-compound env operands))
+                        )
                     )
                 )
             )
-
-        
     )
 )
 
+(define apply-compound [env args]
+    (if (nil? args)
+        ()
+        (cons (eval-expr (car args) env) (apply-compound env (cdr args)))
+    )
+)
 
+;simplify rn by just straight up updating new-env (otherwise match env to what?) but nested not sure?
+(define add-env [key val]
+    (do
+        (swap new-env (add new-env key val))
+        val
+    )
+)
+;parameters are named variables passed to the functions, arguments are actual valus
+(define set-new-env [params args]
+    (if (or (nil? params) (nil? args))
+        ()
+        (do
+            (add-env (car params) (car args))
+            (set-new-env (cdr params) (cdr args))
+        )
+    )
+)
 
-(define empty-env 
+(define new-env 
     (hash-map
         '+ +
         '- -
@@ -53,21 +83,25 @@
     )
 )
 
+
 (define eval [source]
-    (eval-expr source empty-env)
+    (eval-expr source new-env)
 )
 
 
 (define repl-loop [line]
     (do
         (println "lispy> ")
-        (define source (readline))
+        ; readstring parses into an ast 
+        (define source (readstring (readline)))
         (println (eval source))
+        ;uncomment for debugging to see env (println new-env)
         (repl-loop source)
     )
 )
 (repl-loop "")
 ;(eval '(define a 5))
+;(eval '(+ a 10))
 ;(eval '(* 1 2))
 ;(eval '5)
 ;(eval '6.0)

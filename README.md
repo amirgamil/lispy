@@ -1,7 +1,7 @@
 # Lispy ✏️
 ## Intro
 
-Lispy is a programming language that is inspired by Scheme and Clojure. It's a simple Lisp-dialect I built to better understand Lisp and, more generally, functional programming. [Here](https://maryrosecook.com/blog/post/a-practical-introduction-to-functional-programming) [are](http://www.paulgraham.com/onlisptext.html) [some](https://github.com/thesephist/klisp) [great](http://craftinginterpreters.com/) [resources](https://github.com/zhemao/glisp/) I used to figure things out. 
+Lispy is a programming language that is inspired by Scheme and Clojure. It's a simple Lisp-dialect I built to better understand Lisp and, more generally, functional programming.
 
 For a journal documenting my process from not knowing what Lisp was, to building this language, refer to this [blog post](https://amirbolous.com/posts/pl) I wrote.
 
@@ -28,6 +28,8 @@ You can find the source code for this sandbox [here](https://github.com/amirgami
 - [x] Tail call optimization
 - [x] Lists with a core library that supports functional operations like `map`, `reduce`, `range` and several more 
 - [x] Hash maps 
+- [x] A meta-circular interpreter to run a (more barebones) version of itself at `tests/interpreter.py` 
+
 
 ## High Level Overview
 Lispy is written as a tree-walk interpreter in Go with a recursive-descent parser. It also has a separate lexer, although most Lisp dialects are simple enough to parse that the lexing and parsing can be combined into one stage.
@@ -40,10 +42,10 @@ The interpreter code can be found at `pkg/lispy/`, the integration tests can be 
 (each (seq 18)
     (fn [x] 
         (cond
-            (and (divisible? x 3) (divisible? x 5)) (println "FizzBuzz!")
-            (divisible? x 3) (println "Fizz")
-            (divisible? x 5) (println "Buzz")
-            (true) (println x)
+            (and (divisible? x 3) (divisible? x 5)) "FizzBuzz!"
+            (divisible? x 3) "Fizz"
+            (divisible? x 5) "Buzz"
+            (true) x
         )
     )
 )
@@ -51,7 +53,7 @@ The interpreter code can be found at `pkg/lispy/`, the integration tests can be 
 
 
 ### Under The Hood
-Under the hood, Lispy implements a high-level S-expression interface with specific structures to reprsent lists, arrays, symbols, integers, and floats. Lists in Lispy are implemented as linked lists of cons cells, from which we derive the axioms of `car`, `cdr`, and `cons`. Everything else is built on top of these building blocks. Lispy also implements a single environment for variables and functions - it does not keep separate namespaces for them. The environment is the core backbone of the interpreter which allows us to bind values to variables and functions. Lispy uses Go's recursive calls as its native stack and does not implement a separate stack frame. For simplicty, it also does not keep distinct stack frames for each function call, instead copying over all of the data from the parent environment into its current environment. Although this is less memory-efficient and would not be used for a production-ready language, it worked well enough for this project.
+Under the hood, Lispy implements a high-level S-expression interface with specific structures to reprsent lists, arrays, symbols, integers, and floats. Lists in Lispy are implemented as linked lists of cons cells, from which we derive the axioms of `car`, `cdr`, and `cons`. Everything else is built on top of these building blocks. Lispy also implements a single environment for variables and functions - it does not keep separate namespaces for them. The environment is the core backbone of the interpreter which allows us to bind values to variables and functions. Lispy uses Go's recursive calls as its native stack and does not implement a separate stack frame. Each function call gets its own environment with a pointer to the parent environment. Most Lispy programs are not going to be incredibly long, thus for the sake of significant speed gains, Lispy copies over all of the data from the parent environment into the current environment. Although this is less memory-efficient and probably would not be used for a production-ready language, it made the interpreter at least 10x faster (instead of having to recurse up to parent environments to resolve a function/variable declaration) when I tested it.
 
 ### Lispy Library
 Lispy implements a core library (under `lib/lispy.lpy`) that builds on top of the core functionality to offer a rich variety of features.
@@ -75,4 +77,16 @@ For context, this creates a symlink (which is just a shortcut or path to a diffe
 
 ### To Improve
 1. Lispy doesn't handle errors very gracefully, especially in the code sandbox. It's also less strict about code that is incorrect in some way or another, meaning it may still run code that should probably raise an error.
-2. Lispy is not slow but it's not very fast either. There are optimizations that could be made but speed was not a priority for this project as understanding Lisp.
+2. Lispy could probably be a little bit faster with a couple more optimizations, but it's already surprisingly fast. As proof, try running `tests/test4.lpy` :) I think the speed is more indicative of how far modern computers have come than brilliant language design by me.
+
+### Helpful Resources 
+There were many resources that proved to be invaluable over the course of this project. Here's a short snippet of them:
+1. [Glisp](https://github.com/zhemao/glisp/)
+2. [Clojure](https://clojure.org/) 
+3. [Scheme](https://www.scheme.com/tspl4/)
+4. [Klisp](https://github.com/thesephist/klisp/tree/main)
+5. [Structure and Interpretation of Computer Programs](https://web.mit.edu/alexmv/6.037/sicp.pdf)
+6. [Mal](https://github.com/kanaka/mal)
+7. [Lisp in Python](http://norvig.com/lispy.html)
+8. [On Lisp](https://sep.yimg.com/ty/cdn/paulgraham/onlisp.pdf?t=1595850613&)
+9. [Crafting Interpreters](http://craftinginterpreters.com/)

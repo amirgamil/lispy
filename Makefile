@@ -20,4 +20,4 @@ test:
 	./lispy tests/test5.lpy
 	./lispy tests/test6.lpy
 	./lispy tests/test7.lpy
-
+	./lispy tests/test8.lpy

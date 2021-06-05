@@ -193,7 +193,6 @@ func (l *Lexer) scanToken() Token {
 		//skip the first "
 		l.advance()
 		token = l.getUntil('"', STRING, false)
-		//skip final quote
 	case 0:
 		token = newToken(EOF, "EOF")
 	default:

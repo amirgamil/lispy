@@ -1,5 +1,5 @@
 ; attempt to exhaust the stack
-(define max-stack 400000) 
+(define max-stack 150000) 
 
 
 (define sub [n]
