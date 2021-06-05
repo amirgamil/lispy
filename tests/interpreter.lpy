@@ -1,6 +1,8 @@
 ; metacircular lispy interpreter written in lispy with a repl
 
 (define eval-expr [node env]
+    (do 
+    ;(println node)
     (cond
         (nil? node) ()
         (int? node) node
@@ -24,9 +26,13 @@
                         (define body (car (cddr node)))
                         ; return a function which will be the operator when apply is called
                         (fn [& args]
-                            (do
-                                (set-new-env params args)
-                                (eval-expr body env)   
+                            (do 
+                                ;arguments
+                                ; why does this only execute with prinln wtf
+                                (println (set-new-env env (cadr (car node)) args))
+                                (println env)
+                                ; body 
+                                (eval-expr (car (cddr (car node))) env) 
                             )
                         )
                     )
@@ -39,12 +45,15 @@
                         (define operator (eval-expr (car node) env))
                         (define operands (cdr node))
                         (if (= (caar node) 'fn)
-                            (operator (apply-compound env operands))
+                            (do
+                                (operator 5)
+                            )
                             (apply operator (apply-compound env operands))
                         )
                     )
                 )
             )
+    )
     )
 )
 
@@ -56,24 +65,26 @@
 )
 
 ;simplify rn by just straight up updating new-env (otherwise match env to what?) but nested not sure?
-(define add-env [key val]
+(define add-env [env key val]
     (do
-        (swap new-env (add new-env key val))
+        (swap env (add env key val))
         val
     )
 )
 ;parameters are named variables passed to the functions, arguments are actual valus
-(define set-new-env [params args]
-    (if (or (nil? params) (nil? args))
+(define set-new-env [env params arguments]
+    (if (nil? params) 
         ()
         (do
-            (add-env (car params) (car args))
-            (set-new-env (cdr params) (cdr args))
+            (println (str "p: " params))
+            (println (str "a: " arguments))
+            (set-new-env (cdr params) (cdr arguments))
+            (add-env env (car params) (car arguments))
         )
     )
 )
 
-(define new-env 
+(define env 
     (hash-map
         '+ +
         '- -
@@ -85,7 +96,7 @@
 
 
 (define eval [source]
-    (eval-expr source new-env)
+    (eval-expr source env)
 )
 
 

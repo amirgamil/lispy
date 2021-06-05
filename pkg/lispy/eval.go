@@ -117,6 +117,7 @@ func (s SexpSymbol) Eval(env *Env, frame *StackFrame, allowThunk bool) Sexp {
 		if len(frame.args) == 0 {
 			return getVarBinding(env, s.value, frame.args)
 		} else if s.value == "swap" {
+			fmt.Println("oi", s.value)
 			return swap(env, s.value, frame.args)
 		}
 		//otherwise assume this is a function call

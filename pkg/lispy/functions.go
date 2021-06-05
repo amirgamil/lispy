@@ -127,7 +127,6 @@ func evalFunc(env *Env, s *SexpFunctionCall, allowThunk bool) Sexp {
 		}
 
 	}
-
 	variableNumberOfArgs := false
 	//load the passed in data to the arguments of the function in the environment
 	for i, arg := range node.defn.arguments.value {
@@ -325,6 +324,7 @@ func swap(env *Env, name string, args []Sexp) Sexp {
 	if !isNewList {
 		log.Fatal("Error swapping non-list!")
 	}
+	fmt.Println(list.head.String())
 	newVal := newList.head.Eval(env, &StackFrame{}, false)
 	setValWhileKeyExists(env, list.head.String(), newVal)
 	return newVal
@@ -383,6 +383,7 @@ func str(env *Env, name string, args []Sexp) Sexp {
 
 /******* handle conditional statements *********/
 func conditionalStatement(env *Env, name string, args []Sexp) Sexp {
+	//fmt.Println(args)
 	//put thunk as last argument
 	thunk, isThunk := args[len(args)-1].(SexpSymbol)
 	//TODO: improve this
