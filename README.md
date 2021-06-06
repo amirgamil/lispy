@@ -11,7 +11,7 @@ Here's a taste for what it can do
 
 You can tour the language and run it in the browser [here](http://lispy.amirbolous.com/)
 
-![tour](docs/img.png)
+![tour](docs/website.png)
 
 You can find the source code for this sandbox [here](https://github.com/amirgamil/lispysandbox).
 
