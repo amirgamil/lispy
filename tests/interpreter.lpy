@@ -58,7 +58,6 @@
     )
 )
 
-;simplify rn by just straight up updating new-env (otherwise match env to what?) but nested not sure?
 (define add-env [env key val]
     (do
         (swap env (add env key val))
@@ -70,7 +69,6 @@
     (if (nil? params) 
         ()
         (do 
-            (println (str "a: " args))
             (set-new-env env (cdr params) (cdr args))
             (add-env env (car params) (car args))
         )
