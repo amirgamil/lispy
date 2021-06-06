@@ -494,6 +494,7 @@ func symbol(env *Env, name string, args []Sexp) Sexp {
 /******* handle println statements *********/
 func printlnStatement(env *Env, name string, args []Sexp) Sexp {
 	for _, arg := range args {
+		//uncomment to see live prints for local stuff
 		//fmt.Print(arg.String(), " ")
 		return arg
 	}
